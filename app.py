@@ -67,6 +67,7 @@ EXAMPLE_DIR = ROOT / "judge_test"
 EXAMPLE_FILES = [str(EXAMPLE_DIR / f) for f in ("test.csv", "test_excel_messy.csv", "answers.csv",
                                                 "train_optional.csv") if (EXAMPLE_DIR / f).exists()]
 MANUAL_HISTORY_DAYS = 30
+TRAINED_UNTIL = "2025-10-31"  # last labelled day of the shipped model (scripts/build_dataset.py ALL_END)
 APP_CSS = CARD_CSS + """
 .gradio-container{width:100% !important;max-width:1500px !important;margin:0 auto !important}
 .gradio-container, .gradio-container *{font-size:max(1em, 12px)}
@@ -249,6 +250,19 @@ def score_markdown(test: pd.DataFrame, pred: np.ndarray, answers: pd.DataFrame) 
             f"| {m['rmse']:,.0f} cfs | {m['rmse_extreme']:,.0f} cfs | {m['mae']:,.0f} cfs | {m['r2']:.3f} |")
 
 
+def kit_description(kit_dir: Path = EXAMPLE_DIR) -> str:
+    """Practice-files note read from the kit itself, so it stays right when the kit is rebuilt."""
+    test = pd.read_csv(kit_dir / "test.csv", usecols=[ID_COL, DATE_COL], dtype=str)
+    start, end = test[DATE_COL].min(), test[DATE_COL].max()
+    ids = set(test[ID_COL])
+    known = len(ids & set(MODEL.station_stats[ID_COL].astype(str)))
+    timing = ("after every day the model was trained on" if start > TRAINED_UNTIL
+              else "inside the model's training years for known rivers")
+    return (f"{start} → {end} ({timing}): {known} known + {len(ids) - known} never-seen rivers. "
+            "`test_excel_messy.csv` is the same data saved the way Excel might (zeros stripped, "
+            "dd/mm/yyyy dates, soil in %); it gives identical predictions.")
+
+
 def run_batch(test_file, train_file, answers_file=None):
     if test_file is None:
         raise gr.Error("Upload test.csv first.")
@@ -423,9 +437,7 @@ def build() -> gr.Blocks:
                     ).success(_show, None, batch_out)
             if EXAMPLE_FILES:
                 with gr.Accordion("Practice files (download, then upload above)", open=False):
-                    gr.Markdown("2024-07 → 2025-06, never used in training: 5 known rivers + 2 rivers the model has "
-                                "never seen. `test_excel_messy.csv` is the same data saved the way Excel might "
-                                "(zeros stripped, dd/mm/yyyy dates, soil in %); it gives identical predictions.")
+                    gr.Markdown(kit_description())
                     gr.File(value=EXAMPLE_FILES, file_count="multiple", interactive=False, show_label=False)
         with gr.Tab(t(TAB_KEYS[3])) as tab:
             tabs.append(tab)

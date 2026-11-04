@@ -145,6 +145,20 @@ def test_batch_scores_against_answers_and_messy_file_matches():
     assert f"{len(pd.read_csv(KIT / 'answers.csv')):,} of" in clean[4]
 
 
+def test_kit_description_reads_dates_and_river_counts_from_the_kit(tmp_path):
+    rows = "station_id,date\n01646500,2025-11-01\n99999999,2025-11-02\n01646500,2026-10-31\n"
+    (tmp_path / "test.csv").write_text(rows, encoding="utf-8")
+    text = app.kit_description(tmp_path)
+    assert "2025-11-01 → 2026-10-31" in text
+    assert "after every day the model was trained on" in text
+    assert "1 known + 1 never-seen rivers" in text
+
+
+def test_kit_description_flags_a_kit_inside_the_training_years(tmp_path):
+    (tmp_path / "test.csv").write_text("station_id,date\n01646500,2024-07-01\n", encoding="utf-8")
+    assert "inside the model's training years" in app.kit_description(tmp_path)
+
+
 def test_batch_answers_without_target_is_rejected(tmp_path):
     bad = tmp_path / "answers.csv"
     bad.write_text("station_id,date\n02087500,2023-06-01\n", encoding="utf-8")

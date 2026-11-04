@@ -188,17 +188,19 @@ floodcast/alerts.py      WhatsApp/SMS text, CAP 1.2 XML
 floodcast/i18n.py        English / Hindi / Kannada strings
 floodcast/views.py       cards, map, hydrograph
 models/                  shipped model, station stats, thresholds, intervals (binary in git)
+data/processed/judge_kit_stations.csv   coordinates + attributes of the 7 practice-kit rivers
 data/processed/          training/holdout data;  data/sample/ small example;  data/snapshot/ offline forecast
 judge_test/              practice test kit + answers
 reports/                 metrics, alert skill, replay events, holdout predictions, slides.pdf, screenshots
-scripts/                 data download, dataset build, evaluation, thresholds, kit, slides, verify_install.py
-tests/                   pytest suite (76 tests)
+scripts/                 data download, dataset build, evaluation, thresholds, kit, slides,
+                         verify_install.py (install check), score_kit.py (practice-kit scores)
+tests/                   pytest suite (79 tests)
 setup.bat, run_app.bat, predict.bat   Windows double-click scripts
 ```
 
 ## 8. How correctness is checked
 
-- `pytest -q tests`: **76 tests** covering:
+- `pytest -q tests`: **79 tests** covering:
   - messy inputs and the output rules;
   - risk levels;
   - all 3 languages;
@@ -230,6 +232,6 @@ setup.bat, run_app.bat, predict.bat   Windows double-click scripts
 - Fill in the team member names in `README.md`.
 - A native speaker should proofread the Hindi and Kannada text (`floodcast/i18n.py`).
 - A fresh practice kit for **Nov 2025 → Oct 2026** (after every training day) is built by
-  `scripts/make_judge_kit.py` when the Open-Meteo daily quota allows. Until that commit lands,
+  `scripts/make_judge_kit.py` (Task 2 in `CLAUDE.md`, run on the Windows laptop). Until that commit lands,
   `judge_test/` holds Jul 2024 → Jun 2025. Those dates are inside the final model's training
   period for the 5 known rivers, so its score is optimistic.

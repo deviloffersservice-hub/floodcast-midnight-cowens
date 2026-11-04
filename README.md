@@ -110,6 +110,7 @@ python solution.py predict --test test.csv --train train.csv --out predictions.c
 python app.py                   # web app
 pytest -q tests                 # self-tests
 python scripts/verify_install.py   # install check: predictions.csv reproduces + practice-kit score
+python scripts/score_kit.py        # practice-kit scores: known vs never-seen rivers, with/without history
 ```
 
 ## Practice test kit (`judge_test/`)
@@ -180,7 +181,7 @@ models/                trained LightGBM ensembles, station statistics, flood thr
 data/processed/        train.csv, test.csv (our held-out split), station metadata
 data/sample/           small example test file
 data/snapshot/         saved 16-day forecast (offline fallback)
-tests/                 76 tests: I/O robustness, risk, languages, alerts, forecast fallback, app
+tests/                 79 tests: I/O robustness, risk, languages, alerts, forecast fallback, app
 judge_test/            practice test kit in the organizers' format, with answers
 setup.bat, run_app.bat, predict.bat   Windows one-click scripts
 CLAUDE.md, CONTEXT.md  setup steps for Claude Code on Windows; project hand-over notes

@@ -13,6 +13,10 @@ Files
                         dd/mm/yyyy dates, soil moisture in %, shuffled rows
   answers.csv           true USGS discharge for every test row (organizers keep this)
   train_optional.csv    earlier history (2023-01 to 2025-10) for the two never-seen rivers
+
+Needs internet only (USGS + Open-Meteo); station coordinates and catchment attributes come from
+data/processed/judge_kit_stations.csv, so it runs on any machine with the repo (e.g. Windows).
+Downloads are cached in data/raw/judge/, so a rerun after an error resumes where it stopped.
 """
 from __future__ import annotations
 
@@ -24,12 +28,11 @@ import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "scripts"))
 from floodcast.schema import INPUT_COLS, STATIC_COLS, TARGET, TRAIN_COLS  # noqa: E402
-from select_stations import load_gages2  # noqa: E402
 
 OUT = ROOT / "judge_test"
 RAW = ROOT / "data" / "raw" / "judge"
+KIT_STATIONS = ROOT / "data" / "processed" / "judge_kit_stations.csv"  # coordinates + attributes
 START, END = "2025-11-01", "2026-10-31"
 HISTORY_START, HISTORY_END = "2023-01-01", "2025-10-31"
 KNOWN = ["01646500", "07010000", "08158000", "02087500", "03301500"]
@@ -40,6 +43,7 @@ METEO_VARS = "precipitation_sum,temperature_2m_max,temperature_2m_min,soil_moist
 BAD_QUALITY = "Ice|Eqp|Bkw"  # same cleaning as the training data
 SHUFFLE_SEED = 7
 TIMEOUT_S = 120
+HTTP_TOO_MANY_REQUESTS = 429
 
 
 def _usgs(sid: str, start: str, end: str) -> pd.DataFrame:
@@ -57,6 +61,9 @@ def _meteo(lat: float, lon: float, start: str, end: str) -> pd.DataFrame:
     params = {"latitude": lat, "longitude": lon, "start_date": start, "end_date": end, "daily": METEO_VARS,
               "timezone": "auto"}
     resp = requests.get(METEO_URL, params=params, timeout=TIMEOUT_S)
+    if resp.status_code == HTTP_TOO_MANY_REQUESTS:
+        raise SystemExit(f"Open-Meteo rate limit reached ({resp.text[:200]}). The daily limit resets at "
+                         "00:00 UTC (05:30 IST), the hourly one on the hour: wait, then rerun (downloads resume).")
     resp.raise_for_status()
     d = resp.json()["daily"]
     return pd.DataFrame({"date": d["time"], "precipitation_mm": d["precipitation_sum"],
@@ -65,10 +72,12 @@ def _meteo(lat: float, lon: float, start: str, end: str) -> pd.DataFrame:
 
 
 def _attributes() -> pd.DataFrame:
-    """Static attributes: the model's own station table for known rivers, GAGES-II for new ones."""
-    ours = pd.read_csv(ROOT / "models" / "stations.csv", dtype={"station_id": str})
-    gages = load_gages2()
-    return pd.concat([ours, gages[~gages.station_id.isin(ours.station_id)]]).set_index("station_id")
+    """Coordinates + static attributes of the kit stations (model's station table / GAGES-II)."""
+    attrs = pd.read_csv(KIT_STATIONS, dtype={"station_id": str}).set_index("station_id")
+    missing = sorted(set(KNOWN + NEW) - set(attrs.index))
+    if missing:
+        raise ValueError(f"{KIT_STATIONS.name} has no attributes for {missing}")
+    return attrs
 
 
 def station_rows(stations: list[str], start: str, end: str) -> pd.DataFrame:

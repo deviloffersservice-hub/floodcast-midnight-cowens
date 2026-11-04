@@ -1,13 +1,16 @@
-"""Tests for scripts/verify_install.py: the cross-machine prediction comparison."""
+"""Tests for the install check (scripts/verify_install.py) and kit scoring (scripts/score_kit.py)."""
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+from score_kit import KIT, kit_scores, to_markdown  # noqa: E402
 from verify_install import compare  # noqa: E402
 
 
@@ -39,3 +42,15 @@ def test_different_keys_fail_even_with_equal_values():
 def test_different_row_counts_fail():
     result = compare(_preds([10.0, 20.0]), _preds([10.0], dates=("2025-01-01",)))
     assert result["keys_match"] is False
+
+
+@pytest.mark.skipif(not (KIT / "answers.csv").exists(), reason="practice kit not built")
+def test_kit_scores_cover_every_answer_row_for_both_inputs():
+    rows = kit_scores()
+    n_answers = len(pd.read_csv(KIT / "answers.csv"))
+    totals = [r for r in rows if r["group"] == "all"]
+    assert [r["n"] for r in totals] == [n_answers] * len(totals) and len(totals) in (1, 2)
+    assert all(np.isfinite([r["rmse"], r["rmse_extreme"], r["mae"], r["r2"]]).all() for r in rows)
+    split = {r["group"]: r["n"] for r in rows if r["input"] == "test.csv"}
+    assert split.get("known", 0) + split.get("new", 0) == n_answers
+    assert to_markdown(rows).count("\n") == len(rows) + 1
