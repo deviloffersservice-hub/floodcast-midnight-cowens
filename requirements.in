@@ -7,3 +7,4 @@ requests
 gradio
 matplotlib
 pytest
+plotly

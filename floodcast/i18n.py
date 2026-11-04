@@ -1,0 +1,189 @@
+"""User-facing text in English, Hindi and Kannada.
+
+Machine-assisted translations: a native speaker should proofread before real use.
+Every key must exist in every language (enforced by tests/test_product.py).
+"""
+from __future__ import annotations
+
+LANGS = {"English": "en", "हिन्दी (Hindi)": "hi", "ಕನ್ನಡ (Kannada)": "kn"}
+DEFAULT_LANG = "en"
+
+_EN = {
+    "level.normal": "NORMAL", "level.elevated": "ELEVATED", "level.warning": "WARNING",
+    "level.danger": "DANGER", "level.extreme": "EXTREME", "level.unknown": "NO RECORD",
+    "meaning.normal": "The river is within its usual range.",
+    "meaning.elevated": "The river is higher than usual (top 10% of days). Low crossings and river banks may be unsafe.",
+    "meaning.warning": "Flooding is likely: a level reached about once every 2 years. Riverside fields and low roads may flood.",
+    "meaning.danger": "Serious flooding is likely: a level reached about once every 5 years. Homes near the river may be affected.",
+    "meaning.extreme": "Severe, rare flooding is possible: a level reached about once every 20 years. Danger to life near the river.",
+    "meaning.unknown": "This station has no past flow record, so a risk level cannot be given. Only the predicted flow is shown.",
+    "actions.normal": ["No action needed.", "Keep following local updates during heavy rain.", "Know your nearest high ground."],
+    "actions.elevated": ["Avoid crossing streams, causeways and low bridges.", "Keep children and animals away from the river bank.", "Charge your phone and follow official updates."],
+    "actions.warning": ["Move livestock, grain and vehicles to higher ground.", "Prepare an emergency bag: documents, medicines, water, torch.", "Do not walk or drive through flood water."],
+    "actions.danger": ["Be ready to leave quickly; agree a meeting place with family.", "Move valuables and people who need help (elderly, sick) to safety first.", "Follow evacuation orders from local authorities immediately."],
+    "actions.extreme": ["Move to higher ground or a relief shelter now if advised.", "Switch off electricity and gas before leaving.", "Call the disaster helpline 112 if you are trapped."],
+    "actions.unknown": ["Use local knowledge of past flood marks.", "Follow official warnings from local authorities.", "Avoid flood water."],
+    "conf.high": "High", "conf.medium": "Medium", "conf.low": "Low",
+    "driver.recent_rain": "Rain in the last 3 days", "driver.past_rain": "Rain over the past weeks",
+    "driver.soil": "Soil wetness", "driver.snow_temp": "Temperature, snow and melt",
+    "driver.season": "Time of year", "driver.river": "Size and usual flow of this river",
+    "driver.up": "raises the flow ×{x}", "driver.down": "lowers the flow ÷{x}",
+    "ui.title": "FLOODCAST — River flood early warning",
+    "ui.subtitle": "Team Midnight Cowens · predicts daily river flow from rain, temperature and soil moisture",
+    "ui.language": "Language", "ui.river": "River station", "ui.mode": "Mode",
+    "ui.mode_live": "Live forecast (next 16 days)", "ui.mode_replay": "Replay a past flood",
+    "ui.event": "Past flood to replay", "ui.check": "Check my river",
+    "ui.tab_public": "Am I safe?", "ui.tab_officer": "Officer dashboard",
+    "ui.tab_batch": "Batch: test.csv → predictions.csv", "ui.tab_manual": "Manual input",
+    "card.title": "Flood risk", "card.today": "Today", "card.peak": "Highest in the next {days} days",
+    "card.peak_line": "{level} on {date}: about {cfs} cfs ({cms} m³/s)",
+    "card.range": "Likely range: {lo} – {hi} cfs · Confidence: {conf}",
+    "card.meaning": "What this means", "card.actions": "What to do", "card.why": "Why?",
+    "card.thresholds": "Flood levels for this river (from 2012–2022 records): warning ≈ {warning} cfs, danger ≈ {danger} cfs",
+    "share.title": "Share this alert", "share.whatsapp": "Send on WhatsApp",
+    "alert.headline": "FLOOD {level}: {river}",
+    "alert.body": "{level} expected on {date} (about {cfs} cfs / {cms} m³/s). {action}",
+    "alert.source": "Source: FLOODCAST research prototype — follow official warnings.",
+    "note.live": "Live weather forecast from Open-Meteo ({source}).",
+    "note.snapshot": "Offline: showing the saved forecast from {date}.",
+    "note.replay": "Replay: running as if today were {date}, using the weather that was later recorded (a perfect-forecast test).",
+    "note.far": "Days 8–16 rely on a longer weather forecast and are less certain.",
+    "chart.observed": "Observed flow (USGS)", "chart.predicted": "Predicted flow", "chart.range": "Likely range",
+    "chart.today": "Today", "chart.flow": "Flow (cfs)",
+    "officer.map": "Highest risk in the selected window", "officer.table": "Stations ranked by risk",
+    "officer.window": "Look-ahead window (days)", "officer.refresh": "Update dashboard",
+    "officer.whatif": "What if? Extra rain (mm)", "officer.whatif_day": "on forecast day",
+    "officer.whatif_btn": "Run what-if", "officer.cap": "Download CAP alert (XML)",
+    "col.station": "Station", "col.level": "Peak risk", "col.peak_date": "Peak date",
+    "col.peak_cfs": "Peak flow (cfs)", "col.today_level": "Today",
+    "err.network": "Weather service unavailable and no saved forecast found. Use 'Replay a past flood' instead.",
+    "disclaimer": "Research prototype, not an official warning. Always follow your local disaster-management authority. Emergency: 112.",
+}
+
+_HI = {
+    "level.normal": "सामान्य", "level.elevated": "बढ़ा हुआ", "level.warning": "चेतावनी",
+    "level.danger": "ख़तरा", "level.extreme": "अत्यधिक ख़तरा", "level.unknown": "रिकॉर्ड नहीं",
+    "meaning.normal": "नदी अपने सामान्य स्तर पर है।",
+    "meaning.elevated": "नदी सामान्य से ऊँची है (साल के सबसे ऊँचे 10% दिनों जैसी)। नीचे के रास्ते और किनारे असुरक्षित हो सकते हैं।",
+    "meaning.warning": "बाढ़ की संभावना है: ऐसा स्तर लगभग हर 2 साल में एक बार आता है। किनारे के खेत और नीची सड़कें डूब सकती हैं।",
+    "meaning.danger": "गंभीर बाढ़ की संभावना है: ऐसा स्तर लगभग हर 5 साल में एक बार आता है। नदी के पास के घर प्रभावित हो सकते हैं।",
+    "meaning.extreme": "बहुत गंभीर और दुर्लभ बाढ़ संभव है: ऐसा स्तर लगभग 20 साल में एक बार आता है। नदी के पास जान का ख़तरा है।",
+    "meaning.unknown": "इस स्टेशन का पुराना जल-प्रवाह रिकॉर्ड नहीं है, इसलिए ख़तरे का स्तर नहीं बताया जा सकता। केवल अनुमानित प्रवाह दिखाया गया है।",
+    "actions.normal": ["कोई कार्रवाई ज़रूरी नहीं।", "भारी बारिश के समय स्थानीय सूचनाएँ देखते रहें।", "पास की ऊँची जगह कौन-सी है, यह जान लें।"],
+    "actions.elevated": ["नाले, रपटे और नीचे के पुल पार न करें।", "बच्चों और पशुओं को नदी किनारे से दूर रखें।", "फ़ोन चार्ज रखें और सरकारी सूचनाएँ देखते रहें।"],
+    "actions.warning": ["पशु, अनाज और वाहन ऊँची जगह पर ले जाएँ।", "आपातकालीन थैला तैयार रखें: दस्तावेज़, दवाइयाँ, पानी, टॉर्च।", "बाढ़ के पानी में पैदल या वाहन से न जाएँ।"],
+    "actions.danger": ["तुरंत निकलने के लिए तैयार रहें; परिवार के साथ मिलने की जगह तय करें।", "पहले बुज़ुर्गों, बीमारों और ज़रूरी सामान को सुरक्षित जगह पहुँचाएँ।", "स्थानीय प्रशासन के निकासी आदेश का तुरंत पालन करें।"],
+    "actions.extreme": ["सलाह मिलने पर अभी ऊँची जगह या राहत शिविर में जाएँ।", "निकलने से पहले बिजली और गैस बंद करें।", "फँस जाने पर आपातकालीन नंबर 112 पर कॉल करें।"],
+    "actions.unknown": ["पुराने बाढ़ के निशानों की स्थानीय जानकारी का उपयोग करें।", "स्थानीय प्रशासन की आधिकारिक चेतावनी का पालन करें।", "बाढ़ के पानी से दूर रहें।"],
+    "conf.high": "अधिक", "conf.medium": "मध्यम", "conf.low": "कम",
+    "driver.recent_rain": "पिछले 3 दिनों की बारिश", "driver.past_rain": "पिछले कुछ हफ़्तों की बारिश",
+    "driver.soil": "मिट्टी की नमी", "driver.snow_temp": "तापमान, बर्फ़ और पिघलना",
+    "driver.season": "मौसम / साल का समय", "driver.river": "इस नदी का आकार और सामान्य प्रवाह",
+    "driver.up": "प्रवाह ×{x} बढ़ाती है", "driver.down": "प्रवाह ÷{x} घटाती है",
+    "ui.title": "FLOODCAST — नदी बाढ़ पूर्व-चेतावनी",
+    "ui.subtitle": "टीम Midnight Cowens · बारिश, तापमान और मिट्टी की नमी से नदी के रोज़ाना प्रवाह का अनुमान",
+    "ui.language": "भाषा", "ui.river": "नदी स्टेशन", "ui.mode": "मोड",
+    "ui.mode_live": "लाइव पूर्वानुमान (अगले 16 दिन)", "ui.mode_replay": "पुरानी बाढ़ दोबारा चलाएँ",
+    "ui.event": "कौन-सी पुरानी बाढ़", "ui.check": "मेरी नदी जाँचें",
+    "ui.tab_public": "क्या मैं सुरक्षित हूँ?", "ui.tab_officer": "अधिकारी डैशबोर्ड",
+    "ui.tab_batch": "बैच: test.csv → predictions.csv", "ui.tab_manual": "मैन्युअल इनपुट",
+    "card.title": "बाढ़ का ख़तरा", "card.today": "आज", "card.peak": "अगले {days} दिनों में सबसे ऊँचा",
+    "card.peak_line": "{date} को {level}: लगभग {cfs} cfs ({cms} m³/s)",
+    "card.range": "संभावित दायरा: {lo} – {hi} cfs · भरोसा: {conf}",
+    "card.meaning": "इसका मतलब", "card.actions": "क्या करें", "card.why": "क्यों?",
+    "card.thresholds": "इस नदी के बाढ़ स्तर (2012–2022 के रिकॉर्ड से): चेतावनी ≈ {warning} cfs, ख़तरा ≈ {danger} cfs",
+    "share.title": "यह चेतावनी साझा करें", "share.whatsapp": "WhatsApp पर भेजें",
+    "alert.headline": "बाढ़ {level}: {river}",
+    "alert.body": "{date} को {level} की संभावना (लगभग {cfs} cfs / {cms} m³/s)। {action}",
+    "alert.source": "स्रोत: FLOODCAST शोध प्रोटोटाइप — सरकारी चेतावनी का पालन करें।",
+    "note.live": "Open-Meteo से लाइव मौसम पूर्वानुमान ({source})।",
+    "note.snapshot": "ऑफ़लाइन: {date} का सहेजा हुआ पूर्वानुमान दिखाया जा रहा है।",
+    "note.replay": "रीप्ले: मानो आज {date} हो, बाद में दर्ज हुए असली मौसम के साथ (पूर्ण-पूर्वानुमान परीक्षण)।",
+    "note.far": "दिन 8–16 लंबे मौसम पूर्वानुमान पर आधारित हैं और कम निश्चित हैं।",
+    "chart.observed": "मापा गया प्रवाह (USGS)", "chart.predicted": "अनुमानित प्रवाह", "chart.range": "संभावित दायरा",
+    "chart.today": "आज", "chart.flow": "प्रवाह (cfs)",
+    "officer.map": "चुनी गई अवधि में सबसे ऊँचा ख़तरा", "officer.table": "ख़तरे के क्रम में स्टेशन",
+    "officer.window": "आगे की अवधि (दिन)", "officer.refresh": "डैशबोर्ड अपडेट करें",
+    "officer.whatif": "क्या होगा अगर? अतिरिक्त बारिश (mm)", "officer.whatif_day": "पूर्वानुमान के दिन",
+    "officer.whatif_btn": "चलाएँ", "officer.cap": "CAP चेतावनी डाउनलोड करें (XML)",
+    "col.station": "स्टेशन", "col.level": "सबसे ऊँचा ख़तरा", "col.peak_date": "तारीख़",
+    "col.peak_cfs": "सबसे ऊँचा प्रवाह (cfs)", "col.today_level": "आज",
+    "err.network": "मौसम सेवा उपलब्ध नहीं है और कोई सहेजा पूर्वानुमान नहीं मिला। 'पुरानी बाढ़ दोबारा चलाएँ' का उपयोग करें।",
+    "disclaimer": "यह शोध प्रोटोटाइप है, आधिकारिक चेतावनी नहीं। हमेशा स्थानीय आपदा प्रबंधन प्राधिकरण का पालन करें। आपातकाल: 112।",
+}
+
+_KN = {
+    "level.normal": "ಸಾಮಾನ್ಯ", "level.elevated": "ಹೆಚ್ಚಳ", "level.warning": "ಎಚ್ಚರಿಕೆ",
+    "level.danger": "ಅಪಾಯ", "level.extreme": "ತೀವ್ರ ಅಪಾಯ", "level.unknown": "ದಾಖಲೆ ಇಲ್ಲ",
+    "meaning.normal": "ನದಿ ತನ್ನ ಸಾಮಾನ್ಯ ಮಟ್ಟದಲ್ಲಿದೆ.",
+    "meaning.elevated": "ನದಿ ಸಾಮಾನ್ಯಕ್ಕಿಂತ ಎತ್ತರದಲ್ಲಿದೆ (ಅತಿ ಎತ್ತರದ 10% ದಿನಗಳಂತೆ). ತಗ್ಗು ದಾಟುಗಳು ಮತ್ತು ದಡಗಳು ಅಸುರಕ್ಷಿತವಾಗಬಹುದು.",
+    "meaning.warning": "ಪ್ರವಾಹ ಸಾಧ್ಯತೆ ಇದೆ: ಈ ಮಟ್ಟ ಸುಮಾರು 2 ವರ್ಷಕ್ಕೊಮ್ಮೆ ಬರುತ್ತದೆ. ದಡದ ಹೊಲಗಳು ಮತ್ತು ತಗ್ಗು ರಸ್ತೆಗಳು ಮುಳುಗಬಹುದು.",
+    "meaning.danger": "ಗಂಭೀರ ಪ್ರವಾಹ ಸಾಧ್ಯತೆ ಇದೆ: ಈ ಮಟ್ಟ ಸುಮಾರು 5 ವರ್ಷಕ್ಕೊಮ್ಮೆ ಬರುತ್ತದೆ. ನದಿಯ ಬಳಿಯ ಮನೆಗಳಿಗೆ ತೊಂದರೆಯಾಗಬಹುದು.",
+    "meaning.extreme": "ಅಪರೂಪದ ತೀವ್ರ ಪ್ರವಾಹ ಸಾಧ್ಯ: ಈ ಮಟ್ಟ ಸುಮಾರು 20 ವರ್ಷಕ್ಕೊಮ್ಮೆ ಬರುತ್ತದೆ. ನದಿಯ ಬಳಿ ಪ್ರಾಣಾಪಾಯವಿದೆ.",
+    "meaning.unknown": "ಈ ನಿಲ್ದಾಣದ ಹಳೆಯ ಹರಿವಿನ ದಾಖಲೆ ಇಲ್ಲ, ಆದ್ದರಿಂದ ಅಪಾಯದ ಮಟ್ಟ ಹೇಳಲಾಗುವುದಿಲ್ಲ. ಅಂದಾಜು ಹರಿವನ್ನು ಮಾತ್ರ ತೋರಿಸಲಾಗಿದೆ.",
+    "actions.normal": ["ಯಾವುದೇ ಕ್ರಮ ಅಗತ್ಯವಿಲ್ಲ.", "ಭಾರೀ ಮಳೆಯ ಸಮಯದಲ್ಲಿ ಸ್ಥಳೀಯ ಮಾಹಿತಿಯನ್ನು ಗಮನಿಸಿ.", "ಹತ್ತಿರದ ಎತ್ತರದ ಸ್ಥಳ ಯಾವುದು ಎಂದು ತಿಳಿದುಕೊಳ್ಳಿ."],
+    "actions.elevated": ["ಹಳ್ಳ, ಕಾಸ್‌ವೇ ಮತ್ತು ತಗ್ಗು ಸೇತುವೆಗಳನ್ನು ದಾಟಬೇಡಿ.", "ಮಕ್ಕಳು ಮತ್ತು ಜಾನುವಾರುಗಳನ್ನು ನದಿ ದಡದಿಂದ ದೂರವಿಡಿ.", "ಫೋನ್ ಚಾರ್ಜ್ ಮಾಡಿ ಮತ್ತು ಅಧಿಕೃತ ಮಾಹಿತಿಯನ್ನು ಗಮನಿಸಿ."],
+    "actions.warning": ["ಜಾನುವಾರು, ಧಾನ್ಯ ಮತ್ತು ವಾಹನಗಳನ್ನು ಎತ್ತರದ ಸ್ಥಳಕ್ಕೆ ಸಾಗಿಸಿ.", "ತುರ್ತು ಚೀಲ ಸಿದ್ಧಪಡಿಸಿ: ದಾಖಲೆಗಳು, ಔಷಧಿ, ನೀರು, ಟಾರ್ಚ್.", "ಪ್ರವಾಹದ ನೀರಿನಲ್ಲಿ ನಡೆಯಬೇಡಿ ಅಥವಾ ವಾಹನ ಚಲಾಯಿಸಬೇಡಿ."],
+    "actions.danger": ["ತಕ್ಷಣ ಹೊರಡಲು ಸಿದ್ಧರಾಗಿರಿ; ಕುಟುಂಬದೊಂದಿಗೆ ಸೇರುವ ಸ್ಥಳ ನಿರ್ಧರಿಸಿ.", "ಮೊದಲು ವೃದ್ಧರು, ಅನಾರೋಗ್ಯದವರು ಮತ್ತು ಬೆಲೆಬಾಳುವ ವಸ್ತುಗಳನ್ನು ಸುರಕ್ಷಿತ ಸ್ಥಳಕ್ಕೆ ಸಾಗಿಸಿ.", "ಸ್ಥಳೀಯ ಆಡಳಿತದ ಸ್ಥಳಾಂತರ ಆದೇಶವನ್ನು ತಕ್ಷಣ ಪಾಲಿಸಿ."],
+    "actions.extreme": ["ಸಲಹೆ ನೀಡಿದರೆ ಈಗಲೇ ಎತ್ತರದ ಸ್ಥಳ ಅಥವಾ ಪರಿಹಾರ ಕೇಂದ್ರಕ್ಕೆ ತೆರಳಿ.", "ಹೊರಡುವ ಮೊದಲು ವಿದ್ಯುತ್ ಮತ್ತು ಗ್ಯಾಸ್ ಬಂದ್ ಮಾಡಿ.", "ಸಿಕ್ಕಿಹಾಕಿಕೊಂಡರೆ ತುರ್ತು ಸಂಖ್ಯೆ 112 ಗೆ ಕರೆ ಮಾಡಿ."],
+    "actions.unknown": ["ಹಳೆಯ ಪ್ರವಾಹದ ಗುರುತುಗಳ ಬಗ್ಗೆ ಸ್ಥಳೀಯ ಮಾಹಿತಿಯನ್ನು ಬಳಸಿ.", "ಸ್ಥಳೀಯ ಆಡಳಿತದ ಅಧಿಕೃತ ಎಚ್ಚರಿಕೆಗಳನ್ನು ಪಾಲಿಸಿ.", "ಪ್ರವಾಹದ ನೀರಿನಿಂದ ದೂರವಿರಿ."],
+    "conf.high": "ಹೆಚ್ಚು", "conf.medium": "ಮಧ್ಯಮ", "conf.low": "ಕಡಿಮೆ",
+    "driver.recent_rain": "ಕಳೆದ 3 ದಿನಗಳ ಮಳೆ", "driver.past_rain": "ಕಳೆದ ಕೆಲವು ವಾರಗಳ ಮಳೆ",
+    "driver.soil": "ಮಣ್ಣಿನ ತೇವಾಂಶ", "driver.snow_temp": "ತಾಪಮಾನ, ಹಿಮ ಮತ್ತು ಕರಗುವಿಕೆ",
+    "driver.season": "ವರ್ಷದ ಸಮಯ", "driver.river": "ಈ ನದಿಯ ಗಾತ್ರ ಮತ್ತು ಸಾಮಾನ್ಯ ಹರಿವು",
+    "driver.up": "ಹರಿವನ್ನು ×{x} ಹೆಚ್ಚಿಸುತ್ತದೆ", "driver.down": "ಹರಿವನ್ನು ÷{x} ಕಡಿಮೆ ಮಾಡುತ್ತದೆ",
+    "ui.title": "FLOODCAST — ನದಿ ಪ್ರವಾಹ ಮುನ್ನೆಚ್ಚರಿಕೆ",
+    "ui.subtitle": "ತಂಡ Midnight Cowens · ಮಳೆ, ತಾಪಮಾನ ಮತ್ತು ಮಣ್ಣಿನ ತೇವಾಂಶದಿಂದ ನದಿಯ ದೈನಂದಿನ ಹರಿವಿನ ಅಂದಾಜು",
+    "ui.language": "ಭಾಷೆ", "ui.river": "ನದಿ ನಿಲ್ದಾಣ", "ui.mode": "ವಿಧಾನ",
+    "ui.mode_live": "ನೇರ ಮುನ್ಸೂಚನೆ (ಮುಂದಿನ 16 ದಿನ)", "ui.mode_replay": "ಹಳೆಯ ಪ್ರವಾಹವನ್ನು ಮರುಪ್ರದರ್ಶಿಸಿ",
+    "ui.event": "ಯಾವ ಹಳೆಯ ಪ್ರವಾಹ", "ui.check": "ನನ್ನ ನದಿಯನ್ನು ಪರಿಶೀಲಿಸಿ",
+    "ui.tab_public": "ನಾನು ಸುರಕ್ಷಿತವೇ?", "ui.tab_officer": "ಅಧಿಕಾರಿ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
+    "ui.tab_batch": "ಬ್ಯಾಚ್: test.csv → predictions.csv", "ui.tab_manual": "ಕೈಯಾರೆ ಇನ್‌ಪುಟ್",
+    "card.title": "ಪ್ರವಾಹ ಅಪಾಯ", "card.today": "ಇಂದು", "card.peak": "ಮುಂದಿನ {days} ದಿನಗಳಲ್ಲಿ ಗರಿಷ್ಠ",
+    "card.peak_line": "{date} ರಂದು {level}: ಸುಮಾರು {cfs} cfs ({cms} m³/s)",
+    "card.range": "ಸಂಭಾವ್ಯ ವ್ಯಾಪ್ತಿ: {lo} – {hi} cfs · ವಿಶ್ವಾಸ: {conf}",
+    "card.meaning": "ಇದರ ಅರ್ಥ", "card.actions": "ಏನು ಮಾಡಬೇಕು", "card.why": "ಏಕೆ?",
+    "card.thresholds": "ಈ ನದಿಯ ಪ್ರವಾಹ ಮಟ್ಟಗಳು (2012–2022 ದಾಖಲೆಗಳಿಂದ): ಎಚ್ಚರಿಕೆ ≈ {warning} cfs, ಅಪಾಯ ≈ {danger} cfs",
+    "share.title": "ಈ ಎಚ್ಚರಿಕೆಯನ್ನು ಹಂಚಿಕೊಳ್ಳಿ", "share.whatsapp": "WhatsApp ನಲ್ಲಿ ಕಳುಹಿಸಿ",
+    "alert.headline": "ಪ್ರವಾಹ {level}: {river}",
+    "alert.body": "{date} ರಂದು {level} ಸಾಧ್ಯತೆ (ಸುಮಾರು {cfs} cfs / {cms} m³/s). {action}",
+    "alert.source": "ಮೂಲ: FLOODCAST ಸಂಶೋಧನಾ ಮಾದರಿ — ಅಧಿಕೃತ ಎಚ್ಚರಿಕೆಗಳನ್ನು ಪಾಲಿಸಿ.",
+    "note.live": "Open-Meteo ಯಿಂದ ನೇರ ಹವಾಮಾನ ಮುನ್ಸೂಚನೆ ({source}).",
+    "note.snapshot": "ಆಫ್‌ಲೈನ್: {date} ರ ಉಳಿಸಿದ ಮುನ್ಸೂಚನೆಯನ್ನು ತೋರಿಸಲಾಗುತ್ತಿದೆ.",
+    "note.replay": "ಮರುಪ್ರದರ್ಶನ: ಇಂದು {date} ಎಂಬಂತೆ, ನಂತರ ದಾಖಲಾದ ನಿಜವಾದ ಹವಾಮಾನದೊಂದಿಗೆ (ಪರಿಪೂರ್ಣ-ಮುನ್ಸೂಚನೆ ಪರೀಕ್ಷೆ).",
+    "note.far": "8–16ನೇ ದಿನಗಳು ದೀರ್ಘ ಹವಾಮಾನ ಮುನ್ಸೂಚನೆಯನ್ನು ಆಧರಿಸಿವೆ ಮತ್ತು ಕಡಿಮೆ ನಿಖರವಾಗಿವೆ.",
+    "chart.observed": "ಅಳೆದ ಹರಿವು (USGS)", "chart.predicted": "ಅಂದಾಜು ಹರಿವು", "chart.range": "ಸಂಭಾವ್ಯ ವ್ಯಾಪ್ತಿ",
+    "chart.today": "ಇಂದು", "chart.flow": "ಹರಿವು (cfs)",
+    "officer.map": "ಆಯ್ದ ಅವಧಿಯಲ್ಲಿ ಗರಿಷ್ಠ ಅಪಾಯ", "officer.table": "ಅಪಾಯದ ಕ್ರಮದಲ್ಲಿ ನಿಲ್ದಾಣಗಳು",
+    "officer.window": "ಮುಂದಿನ ಅವಧಿ (ದಿನಗಳು)", "officer.refresh": "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ನವೀಕರಿಸಿ",
+    "officer.whatif": "ಒಂದು ವೇಳೆ? ಹೆಚ್ಚುವರಿ ಮಳೆ (mm)", "officer.whatif_day": "ಮುನ್ಸೂಚನೆಯ ದಿನ",
+    "officer.whatif_btn": "ಚಲಾಯಿಸಿ", "officer.cap": "CAP ಎಚ್ಚರಿಕೆ ಡೌನ್‌ಲೋಡ್ (XML)",
+    "col.station": "ನಿಲ್ದಾಣ", "col.level": "ಗರಿಷ್ಠ ಅಪಾಯ", "col.peak_date": "ದಿನಾಂಕ",
+    "col.peak_cfs": "ಗರಿಷ್ಠ ಹರಿವು (cfs)", "col.today_level": "ಇಂದು",
+    "err.network": "ಹವಾಮಾನ ಸೇವೆ ಲಭ್ಯವಿಲ್ಲ ಮತ್ತು ಉಳಿಸಿದ ಮುನ್ಸೂಚನೆ ಸಿಗಲಿಲ್ಲ. 'ಹಳೆಯ ಪ್ರವಾಹವನ್ನು ಮರುಪ್ರದರ್ಶಿಸಿ' ಬಳಸಿ.",
+    "disclaimer": "ಇದು ಸಂಶೋಧನಾ ಮಾದರಿ, ಅಧಿಕೃತ ಎಚ್ಚರಿಕೆ ಅಲ್ಲ. ಯಾವಾಗಲೂ ಸ್ಥಳೀಯ ವಿಪತ್ತು ನಿರ್ವಹಣಾ ಪ್ರಾಧಿಕಾರವನ್ನು ಪಾಲಿಸಿ. ತುರ್ತು: 112.",
+}
+
+STRINGS = {"en": _EN, "hi": _HI, "kn": _KN}
+
+
+def lang_code(label_or_code: str | None) -> str:
+    if not label_or_code:
+        return DEFAULT_LANG
+    if label_or_code in STRINGS:
+        return label_or_code
+    return LANGS.get(label_or_code, DEFAULT_LANG)
+
+
+def t(key: str, lang: str | None = DEFAULT_LANG, **fmt) -> str:
+    """Translated string; falls back to English, then to the key itself."""
+    code = lang_code(lang)
+    text = STRINGS[code].get(key, _EN.get(key, key))
+    if isinstance(text, list):
+        raise TypeError(f"{key} is a list; use actions()")
+    return text.format(**fmt) if fmt else text
+
+
+def actions(level: str, lang: str | None = DEFAULT_LANG) -> list[str]:
+    code = lang_code(lang)
+    return list(STRINGS[code].get(f"actions.{level}", _EN[f"actions.{level}"]))

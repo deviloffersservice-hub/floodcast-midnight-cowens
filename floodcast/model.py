@@ -106,6 +106,17 @@ class FloodcastModel:
         weather columns are used, to warm up rolling windows; their discharge is used only
         to compute per-station climatology for stations we have not seen.
         """
+        feats, has_stats = self.featurize(test, history)
+        return self.predict_features(feats, has_stats)
+
+    def predict_features(self, feats: pd.DataFrame, has_stats: np.ndarray) -> np.ndarray:
+        pred = self.unseen.predict(feats)
+        if has_stats.any():
+            pred[has_stats] = self.known.predict(feats[has_stats])
+        return pred
+
+    def featurize(self, test: pd.DataFrame, history: pd.DataFrame | None = None) -> tuple[pd.DataFrame, np.ndarray]:
+        """Model features for the test rows (order preserved) and a 'station has history' mask."""
         stats = self.station_stats
         if history is not None and TARGET in history and history[TARGET].notna().any():
             extra = compute_station_stats(history)
@@ -119,10 +130,7 @@ class FloodcastModel:
         feats = build_features(frame, stats)
         feats = feats[feats["_is_test"].astype(bool)].reset_index(drop=True)
         has_stats = feats["st_log_q_p50"].notna().to_numpy()
-        pred = self.unseen.predict(feats)
-        if has_stats.any():
-            pred[has_stats] = self.known.predict(feats[has_stats])
-        return pred
+        return feats, has_stats
 
     def save(self, out_dir: Path) -> None:
         out_dir.mkdir(parents=True, exist_ok=True)

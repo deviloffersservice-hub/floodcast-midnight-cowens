@@ -1,0 +1,154 @@
+{
+  "n_days": 49361,
+  "n_stations": 48,
+  "model_climate_thresholds": {
+    "elevated": {
+      "observed_days": 4409,
+      "alert_days": 4567,
+      "hits": 2448,
+      "misses": 1961,
+      "false_alarms": 2119,
+      "pod": 0.5552279428441823,
+      "far": 0.46398073133347933,
+      "csi": 0.375
+    },
+    "warning": {
+      "observed_days": 622,
+      "alert_days": 499,
+      "hits": 185,
+      "misses": 437,
+      "false_alarms": 314,
+      "pod": 0.297427652733119,
+      "far": 0.6292585170340681,
+      "csi": 0.19764957264957264
+    },
+    "danger": {
+      "observed_days": 291,
+      "alert_days": 102,
+      "hits": 33,
+      "misses": 258,
+      "false_alarms": 69,
+      "pod": 0.1134020618556701,
+      "far": 0.6764705882352942,
+      "csi": 0.09166666666666666
+    },
+    "extreme": {
+      "observed_days": 145,
+      "alert_days": 5,
+      "hits": 3,
+      "misses": 142,
+      "false_alarms": 2,
+      "pod": 0.020689655172413793,
+      "far": 0.4,
+      "csi": 0.02040816326530612
+    }
+  },
+  "observed_thresholds_naive": {
+    "elevated": {
+      "observed_days": 4409,
+      "alert_days": 2751,
+      "hits": 1833,
+      "misses": 2576,
+      "false_alarms": 918,
+      "pod": 0.41574053073259243,
+      "far": 0.3336968375136314,
+      "csi": 0.3440961141355359
+    },
+    "warning": {
+      "observed_days": 622,
+      "alert_days": 33,
+      "hits": 13,
+      "misses": 609,
+      "false_alarms": 20,
+      "pod": 0.02090032154340836,
+      "far": 0.6060606060606061,
+      "csi": 0.020249221183800622
+    },
+    "danger": {
+      "observed_days": 291,
+      "alert_days": 0,
+      "hits": 0,
+      "misses": 291,
+      "false_alarms": 0,
+      "pod": 0.0,
+      "far": null,
+      "csi": 0.0
+    },
+    "extreme": {
+      "observed_days": 145,
+      "alert_days": 0,
+      "hits": 0,
+      "misses": 145,
+      "false_alarms": 0,
+      "pod": 0.0,
+      "far": null,
+      "csi": 0.0
+    }
+  },
+  "model_climate_within_2_days": {
+    "elevated": {
+      "pod": 0.6604672261283738,
+      "far": 0.32888110356908257,
+      "observed_days": 4409,
+      "alert_days": 4567
+    },
+    "warning": {
+      "pod": 0.3633440514469453,
+      "far": 0.5531062124248497,
+      "observed_days": 622,
+      "alert_days": 499
+    },
+    "danger": {
+      "pod": 0.16494845360824742,
+      "far": 0.5882352941176471,
+      "observed_days": 291,
+      "alert_days": 102
+    },
+    "extreme": {
+      "pod": 0.027586206896551724,
+      "far": 0.4,
+      "observed_days": 145,
+      "alert_days": 5
+    }
+  },
+  "exact_level_match": 0.9063228054536983,
+  "within_one_level": 0.990782196470898,
+  "likely_range_coverage_10_90": 0.7168817487490123,
+  "confusion_actual_rows_pred_cols": {
+    "normal": {
+      "normal": 42833,
+      "elevated": 2002,
+      "warning": 94,
+      "danger": 22,
+      "extreme": 1
+    },
+    "elevated": {
+      "normal": 1775,
+      "elevated": 1815,
+      "warning": 168,
+      "danger": 29,
+      "extreme": 0
+    },
+    "warning": {
+      "normal": 96,
+      "elevated": 155,
+      "warning": 63,
+      "danger": 16,
+      "extreme": 1
+    },
+    "danger": {
+      "normal": 37,
+      "elevated": 40,
+      "warning": 46,
+      "danger": 23,
+      "extreme": 0
+    },
+    "extreme": {
+      "normal": 53,
+      "elevated": 56,
+      "warning": 26,
+      "danger": 7,
+      "extreme": 3
+    }
+  }
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "station_id": "03301500",
+    "event_date": "2025-04-06",
+    "as_of": "2025-04-02",
+    "observed_level": "extreme",
+    "predicted_level": "extreme",
+    "observed_cfs": 50300.0
+  },
+  {
+    "station_id": "09506000",
+    "event_date": "2023-03-22",
+    "as_of": "2023-03-18",
+    "observed_level": "extreme",
+    "predicted_level": "warning",
+    "observed_cfs": 34600.0
+  },
+  {
+    "station_id": "01092000",
+    "event_date": "2023-12-19",
+    "as_of": "2023-12-15",
+    "observed_level": "extreme",
+    "predicted_level": "warning",
+    "observed_cfs": 31900.0
+  },
+  {
+    "station_id": "08279500",
+    "event_date": "2023-05-22",
+    "as_of": "2023-05-18",
+    "observed_level": "extreme",
+    "predicted_level": "warning",
+    "observed_cfs": 5380.0
+  },
+  {
+    "station_id": "09405500",
+    "event_date": "2023-05-01",
+    "as_of": "2023-04-27",
+    "observed_level": "extreme",
+    "predicted_level": "warning",
+    "observed_cfs": 1860.0
+  },
+  {
+    "station_id": "11119750",
+    "event_date": "2023-01-09",
+    "as_of": "2023-01-05",
+    "observed_level": "extreme",
+    "predicted_level": "warning",
+    "observed_cfs": 1050.0
+  }
+]
