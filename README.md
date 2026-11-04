@@ -5,6 +5,9 @@ temperature, soil moisture and catchment attributes, following the FLOODCAST pro
 On top of the model sits an **early-warning app**. It turns cfs into a flood risk level people can
 act on, up to 16 days ahead, in **English, Hindi and Kannada**.
 
+> **Setting this up with Claude Code (e.g. on the Windows laptop)?** Follow [`CLAUDE.md`](CLAUDE.md).
+> Project background, rules and decisions: [`CONTEXT.md`](CONTEXT.md).
+
 **Team:** Midnight Cowens
 **Members:** _TODO: Name 1 (role)_, _TODO: Name 2 (role)_, _TODO: Name 3 (role)_, _TODO: Name 4 (role)_
 
@@ -106,6 +109,7 @@ python solution.py predict --test data/processed/test.csv --out predictions.csv
 python solution.py predict --test test.csv --train train.csv --out predictions.csv   # organizer files
 python app.py                   # web app
 pytest -q tests                 # self-tests
+python scripts/verify_install.py   # install check: predictions.csv reproduces + practice-kit score
 ```
 
 ## Practice test kit (`judge_test/`)
@@ -176,9 +180,10 @@ models/                trained LightGBM ensembles, station statistics, flood thr
 data/processed/        train.csv, test.csv (our held-out split), station metadata
 data/sample/           small example test file
 data/snapshot/         saved 16-day forecast (offline fallback)
-tests/                 70 tests: I/O robustness, risk, languages, alerts, forecast fallback, app
+tests/                 76 tests: I/O robustness, risk, languages, alerts, forecast fallback, app
 judge_test/            practice test kit in the organizers' format, with answers
 setup.bat, run_app.bat, predict.bat   Windows one-click scripts
+CLAUDE.md, CONTEXT.md  setup steps for Claude Code on Windows; project hand-over notes
 ```
 
 _Research prototype, not an official flood warning system. Hindi and Kannada text is
