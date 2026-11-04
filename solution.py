@@ -27,19 +27,26 @@ from floodcast.schema import ID_COL, TARGET, make_submission, read_table, valida
 
 MODEL_DIR = ROOT / "models"
 PROC = ROOT / "data" / "processed"
-# Ensemble members and boosting rounds, chosen by scripts/evaluate.py
-# (early stopping on 2021-2022; ensemble choice on the 2023+ holdout).
-KNOWN_ROUNDS = {"log_l2": 399, "log_specific": 447, "tweedie": 1320}
-UNSEEN_ROUNDS = {"log_specific": 597}
+# Ensemble members: objective -> (boosting rounds, LightGBM overrides of model.BASE_PARAMS).
+# Rounds from early stopping; the overrides won on both time folds (2012-19 -> 2020-22 and
+# 2012-22 -> 2023-25) in a capacity search, for known stations and in station-group CV.
+KNOWN_MEMBERS = {
+    "log_l2": (1550, {"num_leaves": 31, "min_data_in_leaf": 20, "feature_fraction": 0.6}),
+    "log_specific": (447, {}),
+    "tweedie": (1320, {}),
+}
+UNSEEN_MEMBERS = {"log_specific": (330, {"num_leaves": 127, "min_data_in_leaf": 200, "feature_fraction": 0.6})}
+# Median-to-mean correction for stations without a flow record (station-group CV, chosen on
+# two time folds: 2012-19 -> 2020-22 and 2012-22 -> 2023-25; both favoured 1.25-1.30).
+UNSEEN_SCALE = 1.25
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("floodcast")
 
 
-def train(train_path: Path, rounds_scale: float = 1.0) -> FloodcastModel:
+def train(train_path: Path, rounds_scale: float = 1.0, warm_path: Path = PROC / "warmup_weather.parquet") -> FloodcastModel:
     data = read_table(train_path, require_target=True)
     data = data[data[TARGET].notna() & (data[TARGET] >= 0)]
-    warm_path = PROC / "warmup_weather.parquet"
     stats = compute_station_stats(data)
     frame = data.assign(_lab=True)
     if warm_path.exists():
@@ -49,11 +56,11 @@ def train(train_path: Path, rounds_scale: float = 1.0) -> FloodcastModel:
     feats = build_features(frame, stats)
     feats = feats[feats["_lab"].astype(bool)].reset_index(drop=True)
     log.info("training on %d rows, %d stations", len(feats), feats[ID_COL].nunique())
-    known = Ensemble(tuple(fit(feats, KNOWN_FEATURES, o, rounds=int(n * rounds_scale))
-                           for o, n in KNOWN_ROUNDS.items()))
-    unseen = Ensemble(tuple(fit(feats, UNSEEN_FEATURES, o, rounds=int(n * rounds_scale))
-                            for o, n in UNSEEN_ROUNDS.items()))
-    model = FloodcastModel(known, unseen, stats)
+    known = Ensemble(tuple(fit(feats, KNOWN_FEATURES, o, rounds=int(n * rounds_scale), params=p)
+                           for o, (n, p) in KNOWN_MEMBERS.items()))
+    unseen = Ensemble(tuple(fit(feats, UNSEEN_FEATURES, o, rounds=int(n * rounds_scale), params=p)
+                            for o, (n, p) in UNSEEN_MEMBERS.items()))
+    model = FloodcastModel(known, unseen, stats, UNSEEN_SCALE)
     model.save(MODEL_DIR)
     log.info("saved model to %s", MODEL_DIR)
     return model
@@ -77,13 +84,15 @@ def main() -> None:
     t = sub.add_parser("train")
     t.add_argument("--train", type=Path, default=PROC / "train.csv")
     t.add_argument("--rounds-scale", type=float, default=1.0, help="multiply boosting rounds")
+    t.add_argument("--warmup", type=Path, default=PROC / "warmup_weather.parquet",
+                   help="weather before the first training day (warms up rolling windows)")
     p = sub.add_parser("predict")
     p.add_argument("--test", type=Path, default=PROC / "test.csv")
     p.add_argument("--train", type=Path, default=None)
     p.add_argument("--out", type=Path, default=ROOT / "predictions.csv")
     args = parser.parse_args()
     if args.cmd == "train":
-        train(args.train, args.rounds_scale)
+        train(args.train, args.rounds_scale, args.warmup)
     else:
         predict(args.test, args.out, args.train)
 

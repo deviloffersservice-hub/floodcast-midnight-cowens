@@ -25,8 +25,13 @@ SAMPLE_STATIONS = ("01646500", "02087500")
 SAMPLE_PERIOD = ("2023-06-01", "2023-08-31")
 
 
-def main() -> None:
-    stations = pd.read_csv(PROC / "stations.csv", dtype={"station_id": str})
+ALL_END = "2025-10-31"  # final model: every labelled day we have (holdout years included)
+# Extra GAGES-II stations (scripts/add_stations.py) are opt-in: in station-group CV the first
+# 10 made unseen-station accuracy slightly worse on both time folds, so they are not used.
+WITH_EXTRA = "--with-extra" in sys.argv
+
+
+def join_downloads(stations: pd.DataFrame) -> pd.DataFrame:
     frames = []
     for sid in stations.station_id:
         q_path, m_path = RAW / "usgs" / f"{sid}.parquet", RAW / "meteo" / f"{sid}.parquet"
@@ -39,7 +44,25 @@ def main() -> None:
         frames.append(m.merge(q[["date", TARGET]], on="date", how="left"))
     full = pd.concat(frames, ignore_index=True).merge(stations[["station_id", *STATIC_COLS]], on="station_id")
     full["date"] = pd.to_datetime(full.date)
-    full = full[TRAIN_COLS]
+    return full[TRAIN_COLS]
+
+
+def write_all_years(full: pd.DataFrame) -> None:
+    """train_all.csv (2012 -> ALL_END, core + extra stations) and its rolling-window warm-up."""
+    extra_path = PROC / "stations_extra.csv"
+    if WITH_EXTRA and extra_path.exists():
+        extra = pd.read_csv(extra_path, dtype={"station_id": str})
+        full = pd.concat([full, join_downloads(extra[~extra.station_id.isin(full.station_id)])], ignore_index=True)
+    labelled = full[(full.date >= TRAIN_START) & (full.date <= ALL_END)].dropna(subset=[TARGET])
+    labelled.to_csv(PROC / "train_all.csv", index=False, date_format="%Y-%m-%d")
+    full[full.date < TRAIN_START].drop(columns=TARGET).to_parquet(PROC / "warmup_all.parquet", index=False)
+    full.to_parquet(PROC / "full_daily_all.parquet", index=False)
+    print(f"train_all: {len(labelled)} rows, {labelled.station_id.nunique()} stations")
+
+
+def main() -> None:
+    stations = pd.read_csv(PROC / "stations.csv", dtype={"station_id": str})
+    full = join_downloads(stations)
 
     # Weather is kept for every day (rolling-window warm-up); labelled rows drive training/scoring.
     train = full[(full.date >= TRAIN_START) & (full.date <= TRAIN_END)]
@@ -63,6 +86,7 @@ def main() -> None:
     sample[INPUT_COLS].to_csv(sample_dir / "test_sample.csv", index=False, date_format="%Y-%m-%d")
     sample[["station_id", "date", TARGET]].to_csv(sample_dir / "test_sample_labels.csv", index=False,
                                                   date_format="%Y-%m-%d")
+    write_all_years(full)
     print(f"stations={full.station_id.nunique()} train={train[TARGET].notna().sum()} test={len(labelled_test)}")
     print(full.groupby("station_id")[TARGET].agg(["count", "median", "max"]).sort_values("median").to_string())
 

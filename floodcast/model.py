@@ -72,8 +72,9 @@ def _target(feats: pd.DataFrame, objective: str) -> np.ndarray:
 
 
 def fit(train_feats: pd.DataFrame, features: list[str], objective: str,
-        valid_feats: pd.DataFrame | None = None, rounds: int | None = None) -> FittedModel:
-    params = {**BASE_PARAMS, **OBJECTIVES[objective]}
+        valid_feats: pd.DataFrame | None = None, rounds: int | None = None,
+        params: dict | None = None) -> FittedModel:
+    params = {**BASE_PARAMS, **OBJECTIVES[objective], **(params or {})}
     dtrain = lgb.Dataset(train_feats[features], _target(train_feats, objective), free_raw_data=False)
     if valid_feats is not None:
         dvalid = lgb.Dataset(valid_feats[features], _target(valid_feats, objective), reference=dtrain)
@@ -98,6 +99,10 @@ class FloodcastModel:
     known: Ensemble
     unseen: Ensemble
     station_stats: pd.DataFrame
+    # The no-history model is fitted on log(q / area), so it predicts the median, not the mean.
+    # RMSE (70% of the brief's score) is minimised by the mean; this factor (chosen by
+    # station-group CV on two time folds) restores it. Known stations need no correction.
+    unseen_scale: float = 1.0
 
     def predict(self, test: pd.DataFrame, history: pd.DataFrame | None = None) -> np.ndarray:
         """Predict discharge for each test row (order preserved).
@@ -110,7 +115,7 @@ class FloodcastModel:
         return self.predict_features(feats, has_stats)
 
     def predict_features(self, feats: pd.DataFrame, has_stats: np.ndarray) -> np.ndarray:
-        pred = self.unseen.predict(feats)
+        pred = self.unseen.predict(feats) * self.unseen_scale
         if has_stats.any():
             pred[has_stats] = self.known.predict(feats[has_stats])
         return pred
@@ -141,6 +146,7 @@ class FloodcastModel:
                 fname = f"{name}_{m.objective}.txt"
                 m.booster.save_model(str(out_dir / fname))
                 meta[name].append({"file": fname, "objective": m.objective, "features": m.features})
+        meta["unseen_scale"] = self.unseen_scale
         self.station_stats.to_csv(out_dir / "station_stats.csv", index=False, encoding="utf-8")
         (out_dir / "model_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
@@ -155,7 +161,7 @@ class FloodcastModel:
             ))
 
         stats = pd.read_csv(out_dir / "station_stats.csv", dtype={ID_COL: str}, encoding="utf-8")
-        return cls(load_ens("known"), load_ens("unseen"), stats)
+        return cls(load_ens("known"), load_ens("unseen"), stats, float(meta.get("unseen_scale", 1.0)))
 
 
 __all__ = ["FloodcastModel", "FittedModel", "Ensemble", "fit", "KNOWN_FEATURES", "UNSEEN_FEATURES", "WEATHER_COLS"]

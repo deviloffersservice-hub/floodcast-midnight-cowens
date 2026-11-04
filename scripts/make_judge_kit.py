@@ -1,18 +1,18 @@
 """Build judge_test/: practice files in the exact format the organizers will use.
 
-Window 2024-07-01 to 2025-06-30, which the model never saw in training or tuning:
+Window 2025-11-01 to 2026-10-31: AFTER every day the final model was trained on (it uses
+data up to 2025-10-31), downloaded fresh from USGS (provisional data) + Open-Meteo:
   * 4 stations recommended in the brief (the 5th, Sacramento 11447650, has no USGS data after 2016)
-  * Rolling Fork, KY: big flood in April 2025
-  * 2 rivers the model has NEVER seen (not among the 53 training stations), downloaded fresh from
-    USGS + Open-Meteo: French Broad at Asheville, NC (record Hurricane Helene flood, 27 Sep 2024)
-    and West Fork San Jacinto near Conroe, TX.
+  * Rolling Fork, KY (03301500)
+  * 2 rivers the model has NEVER seen (not among its training stations): French Broad at
+    Asheville, NC (03451500) and West Fork San Jacinto near Conroe, TX (08068000)
 
 Files
   test.csv              official input format (no discharge column) - upload this
   test_excel_messy.csv  same rows as Excel on Windows might save them: leading zeros stripped,
-                        dd/mm/yyyy dates, soil moisture in %, shuffled rows, CRLF line ends
+                        dd/mm/yyyy dates, soil moisture in %, shuffled rows
   answers.csv           true USGS discharge for every test row (organizers keep this)
-  train_optional.csv    18 months of earlier history for the two never-seen rivers (optional)
+  train_optional.csv    earlier history (2023-01 to 2025-10) for the two never-seen rivers
 """
 from __future__ import annotations
 
@@ -29,10 +29,9 @@ from floodcast.schema import INPUT_COLS, STATIC_COLS, TARGET, TRAIN_COLS  # noqa
 from select_stations import load_gages2  # noqa: E402
 
 OUT = ROOT / "judge_test"
-PROC = ROOT / "data" / "processed"
 RAW = ROOT / "data" / "raw" / "judge"
-START, END = "2024-07-01", "2025-06-30"
-HISTORY_START, HISTORY_END = "2023-01-01", "2024-06-30"
+START, END = "2025-11-01", "2026-10-31"
+HISTORY_START, HISTORY_END = "2023-01-01", "2025-10-31"
 KNOWN = ["01646500", "07010000", "08158000", "02087500", "03301500"]
 NEW = ["03451500", "08068000"]
 USGS_URL = "https://waterservices.usgs.gov/nwis/dv/"
@@ -65,31 +64,34 @@ def _meteo(lat: float, lon: float, start: str, end: str) -> pd.DataFrame:
                          "soil_moisture": d["soil_moisture_0_to_7cm_mean"]})
 
 
-def new_station_rows(start: str, end: str) -> pd.DataFrame:
-    """USGS flow + Open-Meteo weather + GAGES-II attributes for the never-seen rivers (cached)."""
-    gages = load_gages2().set_index("station_id")
+def _attributes() -> pd.DataFrame:
+    """Static attributes: the model's own station table for known rivers, GAGES-II for new ones."""
+    ours = pd.read_csv(ROOT / "models" / "stations.csv", dtype={"station_id": str})
+    gages = load_gages2()
+    return pd.concat([ours, gages[~gages.station_id.isin(ours.station_id)]]).set_index("station_id")
+
+
+def station_rows(stations: list[str], start: str, end: str) -> pd.DataFrame:
+    """USGS flow + Open-Meteo weather + static attributes (each download cached)."""
+    attrs = _attributes()
     frames = []
     RAW.mkdir(parents=True, exist_ok=True)
-    for sid in NEW:
+    for sid in stations:
         path = RAW / f"{sid}_{start}_{end}.csv"
         if not path.exists():
-            site = gages.loc[sid]
+            site = attrs.loc[sid]
             weather = _meteo(float(site.latitude), float(site.longitude), start, end)
             weather.merge(_usgs(sid, start, end)[["date", TARGET]], on="date", how="left").to_csv(path, index=False)
-        frame = pd.read_csv(path).assign(station_id=sid, **{c: gages.loc[sid, c] for c in STATIC_COLS})
-        frames.append(frame)
+        frames.append(pd.read_csv(path).assign(station_id=sid, **{c: attrs.loc[sid, c] for c in STATIC_COLS}))
     return pd.concat(frames, ignore_index=True).dropna(subset=[TARGET])[TRAIN_COLS]
 
 
 def main() -> None:
-    ours = set(pd.read_csv(ROOT / "models" / "stations.csv", dtype={"station_id": str}).station_id)
-    if ours & set(NEW):
-        raise ValueError(f"{sorted(ours & set(NEW))} are training stations, not new ones")
-    feats = pd.read_csv(PROC / "test.csv", dtype={"station_id": str})
-    labels = pd.read_csv(PROC / "test_labels.csv", dtype={"station_id": str})
-    known = feats.merge(labels, on=["station_id", "date"], validate="one_to_one")
-    known = known[known.station_id.isin(KNOWN) & known.date.between(START, END)]
-    window = pd.concat([known[TRAIN_COLS], new_station_rows(START, END)], ignore_index=True)
+    trained = set(pd.read_csv(ROOT / "data" / "processed" / "train_all.csv", dtype={"station_id": str},
+                              usecols=["station_id"]).station_id)
+    if trained & set(NEW):
+        raise ValueError(f"{sorted(trained & set(NEW))} are training stations, not new ones")
+    window = station_rows(KNOWN + NEW, START, END)
     missing = sorted(set(KNOWN + NEW) - set(window.station_id))
     if missing:
         raise ValueError(f"no rows for {missing}")
@@ -102,7 +104,7 @@ def main() -> None:
         date=lambda d: pd.to_datetime(d.date).dt.strftime("%d/%m/%Y"),
         soil_moisture=lambda d: (d.soil_moisture * 100).round(2))
     messy.to_csv(OUT / "test_excel_messy.csv", index=False, lineterminator="\r\n")
-    history = new_station_rows(HISTORY_START, HISTORY_END)
+    history = station_rows(NEW, HISTORY_START, HISTORY_END)
     history.to_csv(OUT / "train_optional.csv", index=False, lineterminator="\n")
     print(f"test.csv: {len(window)} rows, {window.station_id.nunique()} stations, {START} to {END}; "
           f"train_optional.csv: {len(history)} rows")

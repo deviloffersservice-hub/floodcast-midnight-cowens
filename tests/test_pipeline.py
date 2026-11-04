@@ -125,3 +125,17 @@ def test_missing_required_column_is_clear_error(sample, tmp_path):
     sample.drop(columns=["date"]).to_csv(path, index=False)
     with pytest.raises(ValueError, match="missing required columns"):
         read_table(path)
+
+
+def test_unseen_scale_round_trips_and_only_touches_unseen_rows(sample, tmp_path):
+    from dataclasses import replace
+
+    scaled = replace(MODEL, unseen_scale=2.0)
+    scaled.save(tmp_path)
+    loaded = FloodcastModel.load(tmp_path)
+    assert loaded.unseen_scale == 2.0
+    rows = read_table(SAMPLE)
+    unseen = rows.assign(station_id="NEWRIVER1")
+    base_known, base_unseen = MODEL.predict(rows), MODEL.predict(unseen) / MODEL.unseen_scale
+    assert np.allclose(loaded.predict(rows), base_known)
+    assert np.allclose(loaded.predict(unseen), base_unseen * 2.0)

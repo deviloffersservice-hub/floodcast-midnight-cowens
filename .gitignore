@@ -6,3 +6,4 @@ data/raw/
 *.log
 .DS_Store
 data/cache/
+data/processed/full_daily_all.parquet

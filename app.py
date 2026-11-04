@@ -111,7 +111,7 @@ def _weather(mode: str, stations: pd.DataFrame, event_label: str | None, lang: s
 
 def _note(meta: dict, lang: str) -> str:
     if meta["kind"] == "replay":
-        return t("note.replay", lang, date=meta["date"])
+        return t("note.replay", lang, date=meta["date"]) + " " + t("note.in_training", lang)
     if meta["kind"] == "snapshot":
         return t("note.snapshot", lang, date=meta["date"])
     return t("note.live", lang, source=meta["source"]) + " " + t("note.far", lang)

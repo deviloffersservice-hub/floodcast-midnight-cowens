@@ -1,7 +1,7 @@
 """Compute per-station risk thresholds and likely-range intervals (training years only).
 
-models/thresholds.csv : obs_* thresholds from observed 2012-2022 discharge and model_*
-                        thresholds from the final model's 2012-2022 predictions.
+models/thresholds.csv : obs_* thresholds from observed 2012-2025 discharge and model_*
+                        thresholds from the final model's 2012-2025 predictions (its training years).
 models/intervals.csv  : split-conformal 10th/90th percentile log1p residuals. Probe models
                         are trained on 2012-2020 and scored on 2021-2022, so the 2023+
                         holdout is never used. '__unseen__' comes from station-group CV.
@@ -21,10 +21,11 @@ from floodcast.features import KNOWN_FEATURES, UNSEEN_FEATURES, build_features, 
 from floodcast.model import Ensemble, FloodcastModel, fit  # noqa: E402
 from floodcast.risk import GLOBAL_KEY, INTERVAL_FILE, LEVELS, THRESHOLD_FILE, UNSEEN_KEY, compute_threshold_table  # noqa: E402
 from floodcast.schema import DATE_COL, ID_COL, TARGET, coerce_frame  # noqa: E402
-from solution import KNOWN_ROUNDS, UNSEEN_ROUNDS  # noqa: E402
+from solution import KNOWN_MEMBERS, UNSEEN_MEMBERS, UNSEEN_SCALE  # noqa: E402
 
 MODELS, PROC = ROOT / "models", ROOT / "data" / "processed"
 TRAIN_START, TRAIN_END, CALIB_START = "2012-01-01", "2022-12-31", "2021-01-01"
+THRESHOLD_END = "2025-10-31"  # the final model is trained on every day to here
 LOW_Q, HIGH_Q = 0.10, 0.90
 MIN_CALIB_DAYS = 200
 N_FOLDS = 4
@@ -37,7 +38,7 @@ def load_full() -> pd.DataFrame:
 
 
 def thresholds(full: pd.DataFrame, model: FloodcastModel) -> pd.DataFrame:
-    period = full[DATE_COL].between(TRAIN_START, TRAIN_END)
+    period = full[DATE_COL].between(TRAIN_START, THRESHOLD_END)
     labelled = full[period & full[TARGET].notna()].reset_index(drop=True)
     warm = full[full[DATE_COL] < TRAIN_START].drop(columns=[TARGET])
     labelled = labelled.assign(pred=model.predict(labelled.drop(columns=[TARGET]), history=warm))
@@ -57,7 +58,7 @@ def intervals(full: pd.DataFrame) -> pd.DataFrame:
     feats = build_features(full, stats)
     tr, cal = feats[fit_rows.to_numpy()], feats[cal_rows.to_numpy()].reset_index(drop=True)
 
-    known = Ensemble(tuple(fit(tr, KNOWN_FEATURES, o, rounds=n) for o, n in KNOWN_ROUNDS.items()))
+    known = Ensemble(tuple(fit(tr, KNOWN_FEATURES, o, rounds=n, params=p) for o, (n, p) in KNOWN_MEMBERS.items()))
     res = cal.assign(r=_residuals(cal[TARGET].to_numpy(), known.predict(cal)))
     grp = res.groupby(ID_COL).r
     per = pd.DataFrame({"log_lo": grp.quantile(LOW_Q), "log_hi": grp.quantile(HIGH_Q), "n": grp.size()})
@@ -69,10 +70,10 @@ def intervals(full: pd.DataFrame) -> pd.DataFrame:
     unseen_r = []
     for tr_idx, te_idx in GroupKFold(N_FOLDS).split(stations, groups=stations):
         tr_st, te_st = set(stations[tr_idx]), set(stations[te_idx])
-        ens = Ensemble(tuple(fit(tr[tr[ID_COL].isin(tr_st)], UNSEEN_FEATURES, o, rounds=n)
-                             for o, n in UNSEEN_ROUNDS.items()))
+        ens = Ensemble(tuple(fit(tr[tr[ID_COL].isin(tr_st)], UNSEEN_FEATURES, o, rounds=n, params=p)
+                             for o, (n, p) in UNSEEN_MEMBERS.items()))
         part = cal[cal[ID_COL].isin(te_st)]
-        unseen_r.append(_residuals(part[TARGET].to_numpy(), ens.predict(part)))
+        unseen_r.append(_residuals(part[TARGET].to_numpy(), ens.predict(part) * UNSEEN_SCALE))
     ur = np.concatenate(unseen_r)
     rows.append(pd.DataFrame([{ID_COL: UNSEEN_KEY, "log_lo": np.quantile(ur, LOW_Q), "log_hi": np.quantile(ur, HIGH_Q)}]))
     return pd.concat(rows, ignore_index=True)

@@ -12,7 +12,7 @@ act on, up to 16 days ahead, in **English, Hindi and Kannada**.
 
 We joined USGS daily discharge (parameter 00060), Open-Meteo daily weather at each gauge, and
 catchment attributes for a geographically diverse set of US stations, keeping 2023 onward
-completely out of training. Since `test.csv` has no past discharge, the model reads river memory
+out of training for evaluation (the final model is then retrained on all years). Since `test.csv` has no past discharge, the model reads river memory
 from weather history: rolling rainfall totals (3–90 days), an antecedent-precipitation index,
 soil-moisture trends and a snow-melt proxy. Two CPU-only LightGBM models do the prediction.
 - **Known stations:** uses each station's typical flow. It averages three objectives
@@ -20,13 +20,28 @@ soil-moisture trends and a snow-melt proxy. Two CPU-only LightGBM models do the 
   peaks.
 - **Never-seen stations:** predicts flow per square mile and scales it by drainage area.
 
-## Results (held-out 2023-01-01 → 2025-10-31, never used for training)
+## Results
+
+**Evaluation** (first recipe trained 2012–2022, scored on held-out 2023-01-01 → 2025-10-31):
 
 | Model | RMSE (cfs) | RMSE top-10% days | MAE | R² |
 |---|---|---|---|---|
 | Baseline: station monthly mean | 45,913 | 50,655 | 12,116 | 0.815 |
 | **Ours, known stations** | **38,807** | 55,561 | **8,914** | **0.867** |
 | Ours, unseen stations (station-group CV) | 54,290 | 116,158 | 15,087 | 0.741 |
+
+**Fine-tuned final model** (`models/`, `predictions.csv`). It was tuned on 2 time folds, with
+validation files that start cold like a judge's `test.csv`.
+- **New stations:** RMSE −9% to −15%, flood-peak RMSE −17% to −29%, R² 0.73–0.75 → 0.78–0.82.
+  This comes from a median-to-mean correction, a capacity search, and filling the missing rain
+  history at the start of a file.
+- **Known stations:** −13% RMSE and −26% peak RMSE on 2020–22. Mixed on 2023–25 (RMSE +10%,
+  peak RMSE −4%).
+- **Training data:** the final model is retrained on **all** labelled days 2012 → Oct 2025, so
+  `predictions.csv` on our own 2023–25 `test.csv` is in-sample.
+- **Fully unseen test:** the practice kit in `judge_test/` uses Nov 2025 → Oct 2026.
+
+Full tables and every rejected idea are in [`model_card.md`](model_card.md).
 
 Details are in [`model_card.md`](model_card.md), `reports/metrics.json` and `reports/final_metrics.json`.
 Slides: [`reports/slides.pdf`](reports/slides.pdf).
@@ -134,13 +149,16 @@ Files saved by Excel are handled:
 python scripts/select_stations.py 2   # needs GAGES-II CSVs in data/raw/gages2/csv (see model_card)
 python scripts/fetch_data.py usgs     # USGS NWIS daily discharge
 python scripts/fetch_data.py meteo    # Open-Meteo archive (free tier: ~30 stations/hour)
-python scripts/build_dataset.py       # -> data/processed/{train,test,test_labels}.csv
-python scripts/evaluate.py            # model selection -> reports/metrics.json
-python solution.py train              # -> models/
-python solution.py predict            # -> predictions.csv
-python scripts/score_predictions.py   # -> reports/final_metrics.json
-python scripts/compute_thresholds.py  # -> models/thresholds.csv, models/intervals.csv (2012-2022 only)
+python scripts/build_dataset.py       # -> data/processed/{train,test,test_labels,train_all}.csv
+python scripts/evaluate.py            # first-recipe evaluation -> reports/metrics.json
+python solution.py train              # evaluation model (2012-2022) -> models/
+python scripts/score_predictions.py   # -> reports/final_metrics.json (holdout score)
 python scripts/evaluate_alerts.py     # -> reports/alert_skill.json, reports/replay_events.json
+# final model: same recipe on every labelled day 2012 -> 2025-10 (what is shipped in models/)
+python solution.py train --train data/processed/train_all.csv --warmup data/processed/warmup_all.parquet
+python solution.py predict            # -> predictions.csv
+python scripts/compute_thresholds.py  # -> models/thresholds.csv, models/intervals.csv
+python scripts/make_judge_kit.py      # -> judge_test/ (Nov 2025 -> Oct 2026, after all training data)
 python scripts/make_snapshot.py       # -> data/snapshot/ (offline forecast fallback)
 python scripts/make_slides.py         # -> reports/slides.pdf
 ```
