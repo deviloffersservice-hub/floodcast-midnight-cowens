@@ -152,7 +152,7 @@ def station_detail(lang_label: str, state: dict | None, station_label: str, extr
         alt = outlooks(MODEL, RISK, alt_w, as_of, window_days=window)[sid].daily
     river = NAME_OF.get(sid, sid)
     fig = hydrograph(o, RISK, lang, river, pd.Timestamp(as_of), alt=alt)
-    card = card_html(o, river, RISK, lang, state["note"], window)
+    card = card_html(o, river, RISK, lang, state["note"], window, officer=True)
     st = STATIONS[STATIONS[ID_COL] == sid].iloc[0]
     xml = cap_xml(sid, river, float(st.latitude), float(st.longitude), o.peak_level_name, o.peak_date,
                   o.peak_cfs, lang)

@@ -2,6 +2,8 @@
 
 Predicts **daily river discharge (cubic feet per second)** at USGS river stations from rainfall,
 temperature, soil moisture and catchment attributes, following the FLOODCAST problem statement.
+On top of the model sits an **early-warning app**. It turns cfs into a flood risk level people can
+act on, up to 16 days ahead, in **English, Hindi and Kannada**.
 
 **Team:** Midnight Cowens
 **Members:** _TODO: Name 1 (role)_, _TODO: Name 2 (role)_, _TODO: Name 3 (role)_, _TODO: Name 4 (role)_
@@ -29,6 +31,43 @@ soil-moisture trends and a snow-melt proxy. Two CPU-only LightGBM models do the 
 Details are in [`model_card.md`](model_card.md), `reports/metrics.json` and `reports/final_metrics.json`.
 Slides: [`reports/slides.pdf`](reports/slides.pdf).
 
+## Who uses it, and how
+
+| User | What they need | What the app gives them |
+|---|---|---|
+| **Riverside resident** (tab "Am I safe?") | "Is my river going to flood, and what do I do?", in my language | One colour-coded card: today's level and the highest level in the next 16 days. Below it: what that means, 3 concrete actions, a likely range with a confidence label, and why the model thinks so. A one-tap **WhatsApp alert** |
+| **District disaster officer** (tab "Officer dashboard") | "Which rivers need attention this week, and how sure are we?" | A **map** of every station coloured by peak risk and a **ranked table**. Each station has a flow chart with flood bands and a likely range, plus a **what-if** control ("80 mm more rain on day 2?"). A **CAP 1.2 alert XML** can be exported. CAP is the format of India's NDMA SACHET and US IPAWS |
+| **Hackathon judges / analysts** (tab "Batch") | `test.csv` → `predictions.csv` | The official file, plus `predictions_with_risk.csv`, which adds risk level and likely range |
+
+**Modes**
+- **Live forecast:** Open-Meteo's free 16-day forecast, cached for 3 h. If the internet drops, a
+  saved snapshot is used.
+- **Replay a past flood:** fully offline, from stored data. Example: run as if it were
+  2 April 2025 at Rolling Fork, KY. The app shows *Normal today → EXTREME on 6 April*. The river
+  really peaked at 50,300 cfs on 6 April, an extreme-level flood.
+
+![Resident view](reports/screens/resident_view.jpg)
+![Officer dashboard](reports/screens/officer_dashboard.jpg)
+
+**Risk levels**, per river, from its own 2012–2022 record:
+- Normal;
+- Elevated (top-10% day, the brief's "extreme" definition);
+- Warning (2-year flood);
+- Danger (5-year flood);
+- Extreme (20-year flood).
+
+Levels are compared on the model's own bias-corrected scale, the method GloFAS uses.
+
+**Warning skill** on the 2023–25 holdout, with a ±2-day timing tolerance:
+
+| Level | Caught | False alarms |
+|---|---|---|
+| Elevated | 66% | 33% |
+| Warning | 36% | 55% |
+| Danger | 17% | 59% |
+
+The level is exactly right on 91% of days and within one level on 99%. See `reports/alert_skill.json`.
+
 ## Run it on Windows (no GPU needed — tested target: i5, 8 GB RAM)
 
 1. Download this repository (green **Code** button → **Download ZIP**, then unzip), or `git clone` it.
@@ -37,11 +76,8 @@ Slides: [`reports/slides.pdf`](reports/slides.pdf).
    - It installs the Microsoft C++ runtime if missing. LightGBM needs it; accept the admin prompt.
    - It creates `.venv`, installs the pinned packages from `requirements.txt`, and runs the self-tests.
 3. Then use either:
-   - **`run_app.bat`**: opens the web app at <http://127.0.0.1:7860>.
-     - Batch tab: upload `test.csv` (and optionally `train.csv`), then download `predictions.csv`.
-     - Live station tab: pick a river and dates. It pulls real weather from Open-Meteo and
-       plots predicted discharge against observed USGS discharge.
-     - Manual tab: type in one day's values and get one prediction.
+   - **`run_app.bat`**: opens the web app at <http://127.0.0.1:7860>. It has 4 tabs: Am I safe?,
+     Officer dashboard, Batch, and Manual input. Pick the language at the top.
    - **`predict.bat path\to\test.csv [path\to\train.csv]`** (or drag `test.csv` onto it):
      writes `predictions.csv` next to `test.csv`.
 
@@ -83,6 +119,11 @@ python scripts/build_dataset.py       # -> data/processed/{train,test,test_label
 python scripts/evaluate.py            # model selection -> reports/metrics.json
 python solution.py train              # -> models/
 python solution.py predict            # -> predictions.csv
+python scripts/score_predictions.py   # -> reports/final_metrics.json
+python scripts/compute_thresholds.py  # -> models/thresholds.csv, models/intervals.csv (2012-2022 only)
+python scripts/evaluate_alerts.py     # -> reports/alert_skill.json, reports/replay_events.json
+python scripts/make_snapshot.py       # -> data/snapshot/ (offline forecast fallback)
+python scripts/make_slides.py         # -> reports/slides.pdf
 ```
 
 ## Repository layout
@@ -90,13 +131,17 @@ python solution.py predict            # -> predictions.csv
 ```
 solution.py            train / predict entry point
 app.py                 local Gradio web app
-floodcast/             schema (I/O + validation), features, model, metrics
+floodcast/             schema (I/O + validation), features, model, metrics,
+                       risk (levels, likely range), explain (SHAP drivers), forecast (live/replay),
+                       product (outlooks, what-if), alerts (WhatsApp, CAP 1.2), i18n (EN/HI/KN), views
 scripts/               data download, dataset build, evaluation
-models/                trained LightGBM ensembles + station statistics
+models/                trained LightGBM ensembles, station statistics, flood thresholds, intervals
 data/processed/        train.csv, test.csv (our held-out split), station metadata
 data/sample/           small example test file
-tests/                 robustness tests
+data/snapshot/         saved 16-day forecast (offline fallback)
+tests/                 43 tests: I/O robustness, risk, languages, alerts, forecast fallback, app
 setup.bat, run_app.bat, predict.bat   Windows one-click scripts
 ```
 
-_Research prototype — not an official flood warning system._
+_Research prototype, not an official flood warning system. Hindi and Kannada text is
+machine-assisted and should be reviewed by a native speaker before real use._

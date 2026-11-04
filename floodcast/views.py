@@ -37,15 +37,17 @@ def drivers_html(o: Outlook, lang: str) -> str:
     return "<ul style='margin:4px 0 0 18px'>" + "".join(items) + "</ul>" if items else ""
 
 
-def card_html(o: Outlook, river: str, risk: RiskTable, lang: str, note: str, days: int) -> str:
+def card_html(o: Outlook, river: str, risk: RiskTable, lang: str, note: str, days: int,
+              officer: bool = False) -> str:
     level = o.peak_level_name
     color = LEVEL_COLORS.get(level, LEVEL_COLORS["unknown"])
     acts = "".join(f"<li>{_e(a)}</li>" for a in actions(level, lang))
     obs_thr = risk.observed_thresholds(o.station_id)
     thr_line = ""
-    if "warning" in obs_thr and "danger" in obs_thr:
+    if officer and "warning" in obs_thr and "danger" in obs_thr:
         thr_line = (f"<div style='color:#57606a;font-size:13px;margin-top:6px'>"
-                    f"{_e(t('card.thresholds', lang, warning=fmt_cfs(obs_thr['warning']), danger=fmt_cfs(obs_thr['danger'])))}</div>")
+                    f"{_e(t('card.thresholds', lang, warning=fmt_cfs(obs_thr['warning']), danger=fmt_cfs(obs_thr['danger'])))}"
+                    f"<br>{_e(t('card.method', lang))}</div>")
     peak = t("card.peak_line", lang, level=t(f"level.{level}", lang), date=o.peak_date,
              cfs=fmt_cfs(o.peak_cfs), cms=fmt_cfs(o.peak_cfs / CFS_PER_CMS))
     rng = t("card.range", lang, lo=fmt_cfs(o.peak_lo), hi=fmt_cfs(o.peak_hi), conf=t(f"conf.{o.confidence}", lang))

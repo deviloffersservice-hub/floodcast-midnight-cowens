@@ -73,6 +73,36 @@ Within-station R² is lower than the pooled 0.867. The median is about 0.44 acro
 because pooled R² also rewards getting each river's size right. Per-station scores are in
 `reports/final_metrics.json`.
 
+## Early-warning layer (app only; `predictions.csv` is unaffected)
+- **Risk levels.** For each station: the top-10% daily flow, plus the 2-, 5- and 20-year floods
+  (Gumbel fit by method of moments on 2012–2022 annual maxima, floored at 1 cfs).
+  - Predictions are classified against the same quantities computed on the model's own 2012–2022
+    predictions (the "model climate", as in GloFAS). This cancels the model's tendency to
+    under-predict peaks.
+  - Comparing raw predictions with observed thresholds would catch only 2% of warning-level days.
+    Model-climate thresholds catch 30% on the exact day and 36% within ±2 days.
+- **Alert skill** (2023–25 holdout, ±2 days), caught / false alarms:
+  - Elevated: 66% / 33%.
+  - Warning: 36% / 55%.
+  - Danger: 17% / 59%.
+  - Extreme: 3% / 40%. Rare 20-year floods are mostly missed.
+  - Exact level is right on 91% of days and within one level on 99% (`reports/alert_skill.json`).
+- **Likely range.** Split-conformal 10th–90th percentile of log residuals.
+  - Probe models are trained on 2012–2020 and calibrated on 2021–22, per station, with a wider
+    range for unseen stations from station-group CV.
+  - Holdout coverage is **72%**, below the 80% target. This reflects the shift into 2023–25 and is
+    reported, not tuned.
+  - Days 8–16 are widened ×1.5 because the weather forecast is less reliable that far out.
+- **Why.** LightGBM SHAP contributions (`pred_contrib`), grouped into rain (last 3 days), rain
+  (past weeks), soil, snow/temperature and season, and shown as flow multipliers.
+- **Forecast data (declared external source).** Open-Meteo forecast API: daily precipitation and
+  max/min temperature, 16 days.
+  - It provides no 0–7 cm soil moisture, so soil is held at the last archived value.
+  - Responses are cached for 3 h; `data/snapshot/` is the offline fallback.
+  - Replay mode uses recorded weather, so it is a perfect-forecast test.
+- **Languages.** Hindi and Kannada strings are machine-assisted and need native-speaker review
+  before real use.
+
 ## Known limitations
 - **Large regulated rivers** (Mississippi, Missouri, Ohio, Columbia) mostly respond to rain far
   upstream and to dam releases. Weather at the gauge explains only part of their flow, and these
