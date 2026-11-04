@@ -98,6 +98,29 @@ def _cache_path(ids: list[str], today: date) -> Path:
     return CACHE_DIR / f"live_{key}.parquet"
 
 
+def _read_cache(path: Path) -> pd.DataFrame | None:
+    """Fresh cached frame, or None if missing, expired or unreadable (a corrupt file is removed)."""
+    try:
+        if not path.exists() or time.time() - path.stat().st_mtime >= CACHE_TTL_SECONDS:
+            return None
+        frame = pd.read_parquet(path)
+        return frame if {ID_COL, DATE_COL, *WEATHER_COLS} <= set(frame.columns) and len(frame) else None
+    except Exception as exc:  # corrupt/partial cache must never break the app
+        log.warning("ignoring unreadable cache %s: %s", path, exc)
+        path.unlink(missing_ok=True)
+        return None
+
+
+def _write_cache(frame: pd.DataFrame, path: Path) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        frame.to_parquet(tmp, index=False)
+        tmp.replace(path)
+    except OSError as exc:  # read-only folder etc.: run without cache
+        log.warning("could not write cache %s: %s", path, exc)
+
+
 def _attach_static(frame: pd.DataFrame, stations: pd.DataFrame) -> pd.DataFrame:
     return frame.drop(columns=[c for c in STATIC_COLS if c in frame], errors="ignore").merge(
         stations[[ID_COL, *STATIC_COLS]], on=ID_COL, how="left")
@@ -113,12 +136,11 @@ def live_weather(stations: pd.DataFrame, today: date | None = None) -> tuple[pd.
     ids = stations[ID_COL].tolist()
     path = _cache_path(ids, today)
     try:
-        if path.exists() and time.time() - path.stat().st_mtime < CACHE_TTL_SECONDS:
-            frame, source = pd.read_parquet(path), "cache"
-        else:
+        frame = _read_cache(path)
+        source = "cache"
+        if frame is None:
             frame, source = _fetch_live(stations, today), "live"
-            path.parent.mkdir(parents=True, exist_ok=True)
-            frame.to_parquet(path, index=False)
+            _write_cache(frame, path)
         issued = str(today)
     except (ForecastUnavailable, OSError) as exc:
         log.warning("live weather unavailable (%s); trying snapshot", exc)

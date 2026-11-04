@@ -22,6 +22,8 @@ SUBMISSION_COLS = [ID_COL, DATE_COL, TARGET]
 USGS_ID_LEN = 8
 SOIL_PERCENT_THRESHOLD = 1.5  # m3/m3 is always <= ~0.6; larger values must be percentages
 CSV_ENCODINGS = ("utf-8-sig", "cp1252")
+ALT_SEPARATORS = (";", "\t")
+NUMERIC_COLS = {*WEATHER_COLS, *STATIC_COLS, TARGET}
 # Inputs are rounded to a fixed precision so equivalent inputs (e.g. soil 46.4 % vs 0.464)
 # become bit-identical floats and always fall on the same side of every tree split.
 INPUT_DECIMALS = {"precipitation_mm": 2, "temp_max_c": 2, "temp_min_c": 2, "soil_moisture": 4,
@@ -61,17 +63,32 @@ def parse_dates(raw: pd.Series) -> pd.Series:
     return parsed.dt.normalize()
 
 
+def _read_csv(path: str | Path, encoding: str) -> pd.DataFrame:
+    """Comma CSV, or the semicolon/tab files that Excel writes in some locales
+    (semicolon files usually also use a decimal comma: '1,5' -> 1.5)."""
+    df = pd.read_csv(path, dtype=str, encoding=encoding, keep_default_na=True)
+    if df.shape[1] != 1:
+        return df
+    header = str(df.columns[0])
+    for sep in ALT_SEPARATORS:
+        if sep in header:
+            alt = pd.read_csv(path, dtype=str, encoding=encoding, keep_default_na=True, sep=sep)
+            numeric = [c for c in alt.columns if c.strip().lower() in NUMERIC_COLS]
+            return alt.assign(**{c: alt[c].str.replace(",", ".", regex=False) for c in numeric}) if sep == ";" else alt
+    return df
+
+
 def read_table(path: str | Path, require_target: bool = False) -> pd.DataFrame:
     """Read a train/test CSV (UTF-8 with/without BOM, or Windows-1252) and coerce types."""
     last_error: Exception | None = None
     for enc in CSV_ENCODINGS:
         try:
-            df = pd.read_csv(path, dtype=str, encoding=enc, keep_default_na=True)
+            df = _read_csv(path, enc)
             break
         except UnicodeDecodeError as exc:
             last_error = exc
     else:
-        raise ValueError(f"cannot decode {path}: {last_error}")
+        raise ValueError(f"cannot decode {Path(path).name}: {last_error}")
     df.columns = [str(c).strip().lower() for c in df.columns]
     return coerce_frame(df, require_target=require_target)
 

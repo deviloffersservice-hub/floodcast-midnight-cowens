@@ -89,7 +89,7 @@ def main() -> None:
             "Known stations: 3-objective ensemble + station climatology; unseen: flow per sq mi × area",
             "Risk levels per river: top-10% day, 2-, 5-, 20-year flood (Gumbel), bias-corrected (GloFAS method)",
             "Likely range (split-conformal), plain-language 'why' (SHAP), what-if rainfall, CAP 1.2 export",
-            "Runs offline on an 8 GB laptop; deterministic; 43 automated tests",
+            "Runs offline on an 8 GB laptop; deterministic; 70 automated tests",
         ], y=0.78, step=0.06, size=13)
         _image(fig, REPORTS / "screens" / "resident_view.jpg", [0.04, 0.06, 0.45, 0.42])
         _image(fig, REPORTS / "screens" / "officer_dashboard.jpg", [0.51, 0.06, 0.45, 0.42])

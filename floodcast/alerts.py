@@ -20,18 +20,24 @@ CAP_SEVERITY = {"normal": "Minor", "elevated": "Minor", "warning": "Moderate", "
 CAP_URGENCY = {"normal": "Future", "elevated": "Expected", "warning": "Expected", "danger": "Immediate",
                "extreme": "Immediate", "unknown": "Unknown"}
 ALERT_VALID_HOURS = 24
+QUIET_LEVELS = ("normal", "unknown")
 
 
 def fmt_cfs(value: float) -> str:
     return f"{value:,.0f}"
 
 
+def _headline_body(river: str, level: str, peak_date: str, peak_cfs: float, lang: str, action: str) -> tuple[str, str]:
+    """'Normal' and 'no record' get their own wording: a flood headline would mislead there."""
+    suffix = f"_{level}" if level in QUIET_LEVELS else ""
+    fields = {"level": t(f"level.{level}", lang), "river": river, "date": peak_date, "cfs": fmt_cfs(peak_cfs),
+              "cms": fmt_cfs(peak_cfs / CFS_PER_CMS), "action": action}
+    return t(f"alert.headline{suffix}", lang, **fields), t(f"alert.body{suffix}", lang, **fields).strip()
+
+
 def alert_text(river: str, level: str, peak_date: str, peak_cfs: float, lang: str) -> str:
     """Short plain-language alert, ready to paste into WhatsApp/SMS."""
-    level_name = t(f"level.{level}", lang)
-    head = t("alert.headline", lang, level=level_name, river=river)
-    body = t("alert.body", lang, level=level_name, date=peak_date, cfs=fmt_cfs(peak_cfs),
-             cms=fmt_cfs(peak_cfs / CFS_PER_CMS), action=actions(level, lang)[0])
+    head, body = _headline_body(river, level, peak_date, peak_cfs, lang, actions(level, lang)[0])
     return f"{head}\n{body}\n{t('alert.source', lang)}"
 
 
@@ -47,21 +53,19 @@ def cap_xml(station_id: str, river: str, lat: float, lon: float, level: str, pea
     q = lambda tag: f"{{{CAP_NS}}}{tag}"  # noqa: E731
     root = ET.Element(q("alert"))
     for tag, value in (("identifier", f"floodcast-{station_id}-{uuid.uuid4().hex[:12]}"),
-                       ("sender", "floodcast.midnight-cowens@example.org"), ("sent", now.isoformat()),
+                       ("sender", "FLOODCAST-MidnightCowens"), ("sent", now.isoformat()),
                        ("status", "Exercise"), ("msgType", "Alert"), ("scope", "Public"),
                        ("note", "Research prototype output (FLOODCAST hackathon); not an official warning.")):
         ET.SubElement(root, q(tag)).text = value
     info = ET.SubElement(root, q("info"))
-    level_name = t(f"level.{level}", lang)
+    headline, body = _headline_body(river, level, peak_date, peak_cfs, lang, "")
     fields = (("language", CAP_LANG.get(lang, "en-US")), ("category", "Met"), ("event", "River flood"),
               ("responseType", "Prepare" if level in ("elevated", "warning") else "Evacuate" if level in ("danger", "extreme") else "Monitor"),
               ("urgency", CAP_URGENCY.get(level, "Unknown")), ("severity", CAP_SEVERITY.get(level, "Unknown")),
               ("certainty", "Likely" if level in ("warning", "danger", "extreme") else "Possible"),
               ("effective", now.isoformat()), ("expires", (now + timedelta(hours=ALERT_VALID_HOURS)).isoformat()),
               ("senderName", "FLOODCAST — Team Midnight Cowens"),
-              ("headline", t("alert.headline", lang, level=level_name, river=river)),
-              ("description", t("alert.body", lang, level=level_name, date=peak_date, cfs=fmt_cfs(peak_cfs),
-                                cms=fmt_cfs(peak_cfs / CFS_PER_CMS), action="") + " " + t(f"meaning.{level}", lang)),
+              ("headline", headline), ("description", f"{body} {t(f'meaning.{level}', lang)}"),
               ("instruction", " ".join(actions(level, lang))))
     for tag, value in fields:
         ET.SubElement(info, q(tag)).text = value

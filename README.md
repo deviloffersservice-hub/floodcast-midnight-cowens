@@ -37,7 +37,7 @@ Slides: [`reports/slides.pdf`](reports/slides.pdf).
 |---|---|---|
 | **Riverside resident** (tab "Am I safe?") | "Is my river going to flood, and what do I do?", in my language | One colour-coded card: today's level and the highest level in the next 16 days. Below it: what that means, 3 concrete actions, a likely range with a confidence label, and why the model thinks so. A one-tap **WhatsApp alert** |
 | **District disaster officer** (tab "Officer dashboard") | "Which rivers need attention this week, and how sure are we?" | A **map** of every station coloured by peak risk and a **ranked table**. Each station has a flow chart with flood bands and a likely range, plus a **what-if** control ("80 mm more rain on day 2?"). A **CAP 1.2 alert XML** can be exported. CAP is the format of India's NDMA SACHET and US IPAWS |
-| **Hackathon judges / analysts** (tab "Batch") | `test.csv` → `predictions.csv` | The official file, plus `predictions_with_risk.csv`, which adds risk level and likely range |
+| **Hackathon judges / analysts** (tab "Batch") | `test.csv` → `predictions.csv` | The official file, plus `predictions_with_risk.csv`, which adds risk level and likely range. Upload an optional `answers.csv` to see RMSE, RMSE on top-10% days, MAE and R² |
 
 **Modes**
 - **Live forecast:** Open-Meteo's free 16-day forecast, cached for 3 h. If the internet drops, a
@@ -93,6 +93,24 @@ python app.py                   # web app
 pytest -q tests                 # self-tests
 ```
 
+## Practice test kit (`judge_test/`)
+
+Files in the organizers' format, built by `scripts/make_judge_kit.py` from 2024-07-01 → 2025-06-30.
+The model never trained on these dates. They cover 5 known rivers, plus 2 rivers the model has
+**never seen** (fresh USGS + Open-Meteo data): French Broad at Asheville, NC, with Hurricane
+Helene's record flood, and West Fork San Jacinto, TX.
+
+| File | Use |
+|---|---|
+| `test.csv` | Upload in the Batch tab (or `predict.bat judge_test\test.csv`) |
+| `test_excel_messy.csv` | Same rows saved Excel-style: zeros stripped, dd/mm/yyyy, soil in %, shuffled. Gives identical predictions |
+| `answers.csv` | True USGS discharge. Upload it as the optional answers file to see the score |
+| `train_optional.csv` | 18 months of earlier history for the two new rivers (optional) |
+
+Score on this kit: RMSE 41,468 cfs, RMSE on top-10% days 89,312, MAE 12,512, R² 0.673. It is
+lower than on the full holdout because the window opens during a Mississippi flood with no earlier
+rain history in the file, and the 2 new rivers have no flow record.
+
 ## Input / output contract
 
 `test.csv` columns:
@@ -107,7 +125,8 @@ Files saved by Excel are handled:
 - station IDs with leading zeros stripped;
 - `dd-mm-yyyy` or `mm/dd/yyyy` dates;
 - soil moisture given in % instead of m³/m³;
-- blank cells and unknown stations.
+- blank cells and unknown stations;
+- semicolon- or tab-separated files (decimal commas too).
 
 ## Reproduce training
 
@@ -139,7 +158,8 @@ models/                trained LightGBM ensembles, station statistics, flood thr
 data/processed/        train.csv, test.csv (our held-out split), station metadata
 data/sample/           small example test file
 data/snapshot/         saved 16-day forecast (offline fallback)
-tests/                 43 tests: I/O robustness, risk, languages, alerts, forecast fallback, app
+tests/                 70 tests: I/O robustness, risk, languages, alerts, forecast fallback, app
+judge_test/            practice test kit in the organizers' format, with answers
 setup.bat, run_app.bat, predict.bat   Windows one-click scripts
 ```
 
