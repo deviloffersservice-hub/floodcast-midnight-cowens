@@ -1,0 +1,3 @@
+*.bat text eol=crlf
+models/** binary
+*.csv text eol=lf
