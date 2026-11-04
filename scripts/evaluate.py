@@ -25,6 +25,7 @@ from floodcast.schema import DATE_COL, ID_COL, TARGET  # noqa: E402
 PROC = ROOT / "data" / "processed"
 EARLY_STOP_FROM = "2021-01-01"
 N_FOLDS = 4
+KNOWN_ONLY = "--known-only" in sys.argv
 
 
 def load() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -73,24 +74,30 @@ def main() -> None:
         report[f"known_{obj}"] = {**score(test[TARGET], known_preds[obj], test[ID_COL]), "rounds": rounds}
         print(obj, "known", report[f"known_{obj}"], flush=True)
     add_ensembles(report, "known", known_preds, test)
+    blend_frame = test[[ID_COL, DATE_COL, TARGET]].assign(
+        clim=climatology_baseline(train, test), **{f"p_{k}": v for k, v in known_preds.items()})
+    blend_frame.to_parquet(PROC / "known_holdout_preds.parquet", index=False)
 
     stations = train[ID_COL].unique()
     unseen_preds = {}
-    for obj in OBJECTIVES:
+    for obj in ([] if KNOWN_ONLY else OBJECTIVES):
         preds = np.full(len(test), np.nan)
+        fold_rounds = []
         for tr_idx, te_idx in GroupKFold(N_FOLDS).split(stations, groups=stations):
             tr_st, te_st = set(stations[tr_idx]), set(stations[te_idx])
-            model, _ = fit_with_es(train[train[ID_COL].isin(tr_st)], UNSEEN_FEATURES, obj)
+            model, n_rounds = fit_with_es(train[train[ID_COL].isin(tr_st)], UNSEEN_FEATURES, obj)
+            fold_rounds.append(n_rounds)
             mask = test[ID_COL].isin(te_st).to_numpy()
             preds[mask] = model.predict(test[mask])
         unseen_preds[obj] = preds
-        report[f"unseen_{obj}"] = score(test[TARGET], preds, test[ID_COL])
+        report[f"unseen_{obj}"] = {**score(test[TARGET], preds, test[ID_COL]), "rounds": int(np.median(fold_rounds))}
         print(obj, "unseen", report[f"unseen_{obj}"], flush=True)
-    add_ensembles(report, "unseen", unseen_preds, test)
+    if not KNOWN_ONLY:
+        add_ensembles(report, "unseen", unseen_preds, test)
 
     out = ROOT / "reports"
     out.mkdir(exist_ok=True)
-    (out / "metrics.json").write_text(json.dumps(report, indent=2))
+    (out / ("metrics_known_only.json" if KNOWN_ONLY else "metrics.json")).write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
 
 

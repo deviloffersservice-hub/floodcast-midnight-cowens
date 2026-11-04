@@ -1,12 +1,12 @@
 # Model card — FLOODCAST, Team Midnight Cowens
 
 ## Model type
-Two LightGBM gradient-boosted-tree ensembles. Everything runs on CPU and the full model is 16 MB.
+Two LightGBM gradient-boosted-tree models. Everything runs on CPU and all model files together are 18 MB.
 
-| Ensemble | Used when | Members (equal-weight average) |
+| Model | Used when | Members |
 |---|---|---|
-| **known-station** | `station_id` has discharge history: in our training data, or in a `train.csv` passed at prediction time | log(1+Q) L2 · log(Q / drainage area) L2 · Tweedie (p=1.3) on Q |
-| **unseen-station** | brand-new station | same three objectives, without per-station statistics |
+| **known-station** | `station_id` has discharge history: in our training data, or in a `train.csv` passed at prediction time | equal-weight average of log(1+Q) L2 (399 rounds), log(Q / drainage area) L2 (447 rounds) and Tweedie p=1.3 on Q (1320 rounds) |
+| **unseen-station** | brand-new station | log(Q / drainage area) L2 (597 rounds), with no per-station statistics |
 
 Settings: learning rate 0.03, 63 leaves, `deterministic=true`, fixed seed 42. Boosting rounds
 were chosen by early stopping on 2021–2022 (`scripts/evaluate.py`). Every input is rounded to a
@@ -48,9 +48,30 @@ quota (about 30 stations per hour) limited how many we could download during the
 ## Train / validation results
 See `reports/metrics.json`. Scores use the brief's metrics on raw cfs.
 
-| Setting | RMSE | RMSE top-10% days | MAE | R² |
+Training data: 49 stations with labels in 2012–2022 (193,438 station-days). Holdout: 53 stations,
+49,361 station-days from 2023-01-01 to 2025-10-31.
+
+| Setting (2023–2025 holdout) | RMSE (cfs) | RMSE top-10% days | MAE | R² |
 |---|---|---|---|---|
-| _filled in by final run_ | | | | |
+| Baseline: each station's monthly mean flow | 45,913 | 50,655 | 12,116 | 0.815 |
+| **Final model**, known stations (`predictions.csv`) | **38,807** | 55,561 | **8,914** | **0.867** |
+| Unseen stations: 4-fold station-group CV, stations fully held out | 54,290 | 116,158 | 15,087 | 0.741 |
+
+Validation for picking boosting rounds: early stopping on 2021–2022, training on 2012–2020.
+
+Model-selection notes. These were measured on the holdout; the rejected ideas were dropped
+rather than tuned further:
+- **Kept:** the 3-objective ensemble for known stations. Compared with log-Q alone, flood-peak
+  RMSE drops from 59.0k to 54.5k.
+- **Kept:** log Q/area alone for unseen stations. R² is 0.741, against 0.654 for an ensemble.
+- **Rejected:** 180/365-day rainfall anomalies (RMSE got worse, 59.0k vs 54.4k).
+- **Rejected:** per-station monthly climatology features (neutral).
+- **Rejected:** blending with the climatology baseline (+0.5% only, and it would have been tuned
+  on the test period).
+
+Within-station R² is lower than the pooled 0.867. The median is about 0.44 across stations,
+because pooled R² also rewards getting each river's size right. Per-station scores are in
+`reports/final_metrics.json`.
 
 ## Known limitations
 - **Large regulated rivers** (Mississippi, Missouri, Ohio, Columbia) mostly respond to rain far

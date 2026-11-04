@@ -22,14 +22,15 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 from floodcast.features import KNOWN_FEATURES, UNSEEN_FEATURES, build_features, compute_station_stats  # noqa: E402
-from floodcast.model import OBJECTIVES, Ensemble, FloodcastModel, fit  # noqa: E402
+from floodcast.model import Ensemble, FloodcastModel, fit  # noqa: E402
 from floodcast.schema import ID_COL, TARGET, make_submission, read_table, validate_submission  # noqa: E402
 
 MODEL_DIR = ROOT / "models"
 PROC = ROOT / "data" / "processed"
-# Boosting rounds per objective, from early stopping on 2021-2022 (scripts/evaluate.py).
-KNOWN_ROUNDS = {"log_l2": 300, "log_specific": 250, "tweedie": 300}
-UNSEEN_ROUNDS = {"log_l2": 300, "log_specific": 250, "tweedie": 300}
+# Ensemble members and boosting rounds, chosen by scripts/evaluate.py
+# (early stopping on 2021-2022; ensemble choice on the 2023+ holdout).
+KNOWN_ROUNDS = {"log_l2": 399, "log_specific": 447, "tweedie": 1320}
+UNSEEN_ROUNDS = {"log_specific": 597}
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("floodcast")
@@ -48,10 +49,10 @@ def train(train_path: Path, rounds_scale: float = 1.0) -> FloodcastModel:
     feats = build_features(frame, stats)
     feats = feats[feats["_lab"].astype(bool)].reset_index(drop=True)
     log.info("training on %d rows, %d stations", len(feats), feats[ID_COL].nunique())
-    known = Ensemble(tuple(fit(feats, KNOWN_FEATURES, o, rounds=int(KNOWN_ROUNDS[o] * rounds_scale))
-                           for o in OBJECTIVES))
-    unseen = Ensemble(tuple(fit(feats, UNSEEN_FEATURES, o, rounds=int(UNSEEN_ROUNDS[o] * rounds_scale))
-                            for o in OBJECTIVES))
+    known = Ensemble(tuple(fit(feats, KNOWN_FEATURES, o, rounds=int(n * rounds_scale))
+                           for o, n in KNOWN_ROUNDS.items()))
+    unseen = Ensemble(tuple(fit(feats, UNSEEN_FEATURES, o, rounds=int(n * rounds_scale))
+                            for o, n in UNSEEN_ROUNDS.items()))
     model = FloodcastModel(known, unseen, stats)
     model.save(MODEL_DIR)
     log.info("saved model to %s", MODEL_DIR)

@@ -12,15 +12,22 @@ We joined USGS daily discharge (parameter 00060), Open-Meteo daily weather at ea
 catchment attributes for a geographically diverse set of US stations, keeping 2023 onward
 completely out of training. Since `test.csv` has no past discharge, the model reads river memory
 from weather history: rolling rainfall totals (3–90 days), an antecedent-precipitation index,
-soil-moisture trends and a snow-melt proxy. Two CPU-only LightGBM ensembles do the prediction.
-One is for stations we have history for, using that station's typical flow. The other is for
-never-seen stations and scales flow by drainage area. Each ensemble averages three objectives
-(log-discharge, log discharge-per-square-mile, Tweedie) to balance overall accuracy with flood
-peaks.
+soil-moisture trends and a snow-melt proxy. Two CPU-only LightGBM models do the prediction.
+- **Known stations:** uses each station's typical flow. It averages three objectives
+  (log-discharge, log discharge-per-square-mile, Tweedie) to balance overall accuracy with flood
+  peaks.
+- **Never-seen stations:** predicts flow per square mile and scales it by drainage area.
 
 ## Results (held-out 2023-01-01 → 2025-10-31, never used for training)
 
-See [`model_card.md`](model_card.md) and `reports/metrics.json` for the full table.
+| Model | RMSE (cfs) | RMSE top-10% days | MAE | R² |
+|---|---|---|---|---|
+| Baseline: station monthly mean | 45,913 | 50,655 | 12,116 | 0.815 |
+| **Ours, known stations** | **38,807** | 55,561 | **8,914** | **0.867** |
+| Ours, unseen stations (station-group CV) | 54,290 | 116,158 | 15,087 | 0.741 |
+
+Details are in [`model_card.md`](model_card.md), `reports/metrics.json` and `reports/final_metrics.json`.
+Slides: [`reports/slides.pdf`](reports/slides.pdf).
 
 ## Run it on Windows (no GPU needed — tested target: i5, 8 GB RAM)
 
