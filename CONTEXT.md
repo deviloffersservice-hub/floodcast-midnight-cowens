@@ -170,6 +170,7 @@ as the honest score.
 
 **Practice kit** (`judge_test/`): files in the organisers' format with an answer key; see the README
 section. `scripts/verify_install.py` prints its score.
+Kit 2025-11-01 → 2026-10-31, `test.csv`, all 7 rivers: RMSE 24,232 | RMSE top-10% 43,028 | MAE 7,701 | R² 0.903.
 
 ## 7. Repository map
 
@@ -231,7 +232,4 @@ setup.bat, run_app.bat, predict.bat   Windows double-click scripts
 
 - Fill in the team member names in `README.md`.
 - A native speaker should proofread the Hindi and Kannada text (`floodcast/i18n.py`).
-- A fresh practice kit for **Nov 2025 → Oct 2026** (after every training day) is built by
-  `scripts/make_judge_kit.py` (Task 2 in `CLAUDE.md`, run on the Windows laptop). Until that commit lands,
-  `judge_test/` holds Jul 2024 → Jun 2025. Those dates are inside the final model's training
-  period for the 5 known rivers, so its score is optimistic.
+- Practice kit rebuilt for 2025-11-01 → 2026-10-31 (after all training data) on 2026-11-05; scores in README.

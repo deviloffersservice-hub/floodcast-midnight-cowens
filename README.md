@@ -115,21 +115,33 @@ python scripts/score_kit.py        # practice-kit scores: known vs never-seen ri
 
 ## Practice test kit (`judge_test/`)
 
-Files in the organizers' format, built by `scripts/make_judge_kit.py` from 2024-07-01 → 2025-06-30.
-The model never trained on these dates. They cover 5 known rivers, plus 2 rivers the model has
-**never seen** (fresh USGS + Open-Meteo data): French Broad at Asheville, NC, with Hurricane
-Helene's record flood, and West Fork San Jacinto, TX.
+Files in the organizers' format, built by `scripts/make_judge_kit.py` from fresh USGS + Open-Meteo
+downloads for **2025-11-01 → 2026-10-31**, after every day the final model was trained on (its
+data ends 2025-10-31). They cover 5 rivers the model knows (Potomac, Mississippi at St. Louis,
+Colorado at Austin, Neuse, Rolling Fork) plus 2 it has **never seen**: French Broad at Asheville,
+NC, and West Fork San Jacinto near Conroe, TX.
 
 | File | Use |
 |---|---|
 | `test.csv` | Upload in the Batch tab (or `predict.bat judge_test\test.csv`) |
 | `test_excel_messy.csv` | Same rows saved Excel-style: zeros stripped, dd/mm/yyyy, soil in %, shuffled. Gives identical predictions |
 | `answers.csv` | True USGS discharge. Upload it as the optional answers file to see the score |
-| `train_optional.csv` | 18 months of earlier history for the two new rivers (optional) |
+| `train_optional.csv` | Earlier history (Jan 2023 → Oct 2025) for the two new rivers (optional) |
 
-Score on this kit: RMSE 41,468 cfs, RMSE on top-10% days 89,312, MAE 12,512, R² 0.673. It is
-lower than on the full holdout because the window opens during a Mississippi flood with no earlier
-rain history in the file, and the 2 new rivers have no flow record.
+Score of the shipped model on this kit (python scripts/score_kit.py):
+
+| Input | Rivers | Rows | RMSE (cfs) | RMSE top-10% days | MAE | R² |
+|---|---|---|---|---|---|---|
+| test.csv | all (7) | 2,553 | 24,232 | 43,028 | 7,701 | 0.903 |
+| test.csv | known (5) | 1,823 | 28,670 | 50,908 | 10,567 | 0.898 |
+| test.csv | new (2) | 730 | 909 | 2,353 | 541 | -0.082 |
+| test.csv + train_optional.csv | all (7) | 2,553 | 24,230 | 43,022 | 7,632 | 0.903 |
+| test.csv + train_optional.csv | known (5) | 1,823 | 28,670 | 50,908 | 10,567 | 0.898 |
+| test.csv + train_optional.csv | new (2) | 730 | 690 | 1,982 | 303 | 0.378 |
+
+The 2 new rivers are the weaker group: R² -0.082 from `test.csv` alone, against 0.898 for the
+known rivers. Adding `train_optional.csv` raises the new rivers' R² to 0.378 and lowers their
+RMSE from 909 to 690 cfs; the known rivers' scores do not change.
 
 ## Input / output contract
 
