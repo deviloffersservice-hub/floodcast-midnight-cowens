@@ -82,7 +82,7 @@ Using test discharge as input is leakage.
 | Public repo with code and `requirements.txt` | done |
 | `solution.py` | done |
 | `predictions.csv` | done |
-| `README.md` (team name, members, 3–5 sentence approach, how to run) | done; member names still TODO |
+| `README.md` (team name, members, 3–5 sentence approach, how to run) | done |
 | `model_card.md` (features, model type, train/val RMSE, limitations) | done |
 | 3–5 slides (Problem → Data → Model → Results → Limitations) | `reports/slides.pdf`, 5 slides |
 
@@ -109,7 +109,7 @@ The BASINSHIFT document adds a requirement: **declare all external data** (done 
 | Product layer for two users: a riverside resident and a district disaster officer, in English, Hindi and Kannada | Stand-out on user point of view. Accuracy still decides the winner |
 | Local app (Gradio), no hosting | Runs on the laptop. Offline replay plus a saved-forecast fallback mean the demo survives a network failure |
 | Also deployed online (2026-11-05): `server.py` serves the HTML/CSS app at `/` and the Gradio app at `/gradio/`, on Render's free plan from `Dockerfile` + `render.yaml` (Hugging Face needs PRO for CPU hardware; free accounts only get ZeroGPU) | Team request. The laptop version stays the offline backup for the demo |
-| Team member names left as TODO in README | The team fills them in |
+| Team members in README: Shreya Mishra, Somanjali Singh, Chetna S Rao, Aishwarya Bright | Filled in by the team on 2026-11-05 |
 
 ## 4. Data
 
@@ -239,6 +239,5 @@ setup.bat, run_app.bat, predict.bat   Windows double-click scripts
 
 ## 10. Open items
 
-- Fill in the team member names in `README.md`.
 - A native speaker should proofread the Hindi and Kannada text (`floodcast/i18n.py`).
 - Practice kit rebuilt for 2025-11-01 → 2026-10-31 (after all training data) on 2026-11-05; scores in README.
