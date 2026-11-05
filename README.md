@@ -9,7 +9,7 @@ act on, up to 16 days ahead, in **English, Hindi and Kannada**.
 > Project background, rules and decisions: [`CONTEXT.md`](CONTEXT.md).
 
 **Team:** Midnight Cowens
-**Members:** _TODO: Name 1 (role)_, _TODO: Name 2 (role)_, _TODO: Name 3 (role)_, _TODO: Name 4 (role)_
+**Members:** Shreya Mishra , SOmanjali Singh, Chetna S Rao,Aishwarya Bright
 
 ## Approach
 
