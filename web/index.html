@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FLOODCAST</title>
+<link rel="stylesheet" href="/card.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="#safe">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"/><path d="M2 15c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"/></svg>
+      <span>FLOODCAST</span>
+    </a>
+    <nav id="tabs">
+      <a href="#safe" class="active">Am I safe?</a>
+      <a href="#officer">Officer dashboard</a>
+      <a href="#batch">Batch</a>
+      <a href="#manual">Manual input</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <p id="err" class="error" hidden></p>
+  <datalist id="stationList"></datalist>
+
+  <section id="safe">
+    <div class="head"><h2>Am I safe?</h2><p>Check the flood risk for any river station.</p></div>
+    <div class="card toolbar">
+      <div class="field"><span class="lbl">Mode</span>
+        <div class="seg">
+          <label><input type="radio" name="mode" value="live" checked><span>Live forecast (next 16 days)</span></label>
+          <label><input type="radio" name="mode" value="replay"><span>Replay a past date</span></label>
+        </div>
+      </div>
+      <label>River station <input id="river" list="stationList" autocomplete="off" placeholder="Type to search…"></label>
+      <label class="rep" hidden>Known flood (quick pick) <select id="preset"></select></label>
+      <label class="rep" hidden>Replay as of <input type="date" id="asof"></label>
+      <button id="checkBtn">Check</button>
+    </div>
+    <p class="muted" id="stationCount"></p>
+    <div id="safeOut" hidden>
+      <div id="card"></div>
+      <div id="chart" class="plot card"></div>
+      <div class="card">
+        <div class="split"><h3>Shareable alert</h3><button class="ghost" id="copyBtn">Copy</button></div>
+        <textarea id="alert" rows="4" readonly></textarea>
+      </div>
+    </div>
+  </section>
+
+  <section id="officer" hidden>
+    <div class="head"><h2>Officer dashboard</h2><p>All stations ranked by risk, with a station-level forecast.</p></div>
+    <div class="card toolbar">
+      <div class="field"><span class="lbl">Mode</span>
+        <div class="seg">
+          <label><input type="radio" name="o_mode" value="replay" checked><span>Replay a past date</span></label>
+          <label><input type="radio" name="o_mode" value="live"><span>Live forecast (next 16 days)</span></label>
+        </div>
+      </div>
+      <label class="orep">Known flood (quick pick) <select id="o_preset"></select></label>
+      <label class="orep">Replay as of <input type="date" id="o_asof"></label>
+      <label class="range">Look-ahead window: <b id="winVal">7</b> days
+        <input type="range" id="window" min="1" max="16" value="7">
+      </label>
+      <button id="refreshBtn">Update dashboard</button>
+    </div>
+    <p id="o_note" class="muted">Press Update dashboard to load all stations.</p>
+    <div id="o_out" hidden>
+      <div class="stats" id="stats"></div>
+      <div class="two">
+        <div id="map" class="plot card"></div>
+        <div>
+          <p class="muted tip">Stations ranked by risk. Click a row to open its forecast.</p>
+          <div class="card scroll"><table id="rank" class="click"></table></div>
+        </div>
+      </div>
+      <div class="head sub"><h3>Station detail</h3></div>
+      <div class="card toolbar">
+        <label>Station <select id="pick"></select></label>
+        <label>What if: extra rain (mm) <input type="number" id="extra" min="0" value="0"></label>
+        <label>On forecast day <input type="number" id="day" min="1" max="16" value="2"></label>
+        <button id="detailBtn">Show</button>
+      </div>
+      <div id="d_chart" class="plot card"></div>
+      <div id="d_card"></div>
+      <p><a href="#" id="capLink" hidden>Download CAP alert (XML)</a></p>
+    </div>
+  </section>
+
+  <section id="batch" hidden>
+    <div class="head"><h2>Batch prediction</h2>
+      <p>Upload <code>test.csv</code> to get <code>predictions.csv</code>. Add <code>train.csv</code> for rainfall history and <code>answers.csv</code> to see accuracy.</p></div>
+    <div class="card toolbar">
+      <label>test.csv <input type="file" id="f_test" accept=".csv"></label>
+      <label>train.csv (optional) <input type="file" id="f_train" accept=".csv"></label>
+      <label>answers.csv (optional) <input type="file" id="f_answers" accept=".csv"></label>
+      <button id="batchBtn">Predict</button>
+    </div>
+    <div id="b_out" hidden>
+      <div id="b_score" class="card"></div>
+      <p class="links"><a href="#" id="dlPred">Download predictions.csv</a><a href="#" id="dlRisk">Download predictions_with_risk.csv</a></p>
+      <div class="head sub"><h3>Per-station summary</h3></div>
+      <div class="card scroll"><table id="b_sum"></table></div>
+      <div class="head sub"><h3>Preview (first 200 rows)</h3></div>
+      <div class="card scroll"><table id="b_prev"></table></div>
+    </div>
+  </section>
+
+  <section id="manual" hidden>
+    <div class="head"><h2>Manual input</h2><p>Enter one day's values to get a flow estimate and risk level.</p></div>
+    <div class="card">
+      <label>Prefill from a known station <input id="m_pick" list="stationList" autocomplete="off" placeholder="Type to search…"></label>
+      <div class="grid" id="m_fields"></div>
+      <button id="manualBtn">Predict</button>
+    </div>
+    <div id="m_out"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">Always follow your local disaster-management authority. Emergency: 112.</div>
+</footer>
+<script src="/plotly.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
