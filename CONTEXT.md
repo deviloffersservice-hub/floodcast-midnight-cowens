@@ -4,7 +4,7 @@ Hand-over notes for anyone (person or AI assistant) picking up this repo. They c
 project is, which rules bind it, what has been decided and why, the current state, and what must
 not be changed.
 
-- To set the project up on the Windows laptop, follow [`CLAUDE.md`](CLAUDE.md).
+- To set the project up on the Windows laptop, follow the README section "Run it on Windows".
 - For users, see [`README.md`](README.md).
 - For the model details and evidence, see [`model_card.md`](model_card.md).
 
@@ -108,7 +108,7 @@ The BASINSHIFT document adds a requirement: **declare all external data** (done 
 | 10 extra GAGES-II stations **not** used in the final model | New-station CV got slightly worse in both folds. Kept as opt-in (`scripts/add_stations.py`, `build_dataset.py --with-extra`) |
 | Product layer for two users: a riverside resident and a district disaster officer, in English, Hindi and Kannada | Stand-out on user point of view. Accuracy still decides the winner |
 | Local app (Gradio), no hosting | Runs on the laptop. Offline replay plus a saved-forecast fallback mean the demo survives a network failure |
-| Also deployed online (2026-11-05): `server.py` serves the HTML/CSS app at `/` and the Gradio app at `/gradio/`, on Render's free plan from `Dockerfile` + `render.yaml` (Hugging Face needs PRO for CPU hardware; free accounts only get ZeroGPU) | Team request. The laptop version stays the offline backup for the demo |
+| Also deployed online (2026-11-05): `server.py` serves the HTML/CSS app at `/` and the Gradio app at `/gradio/`, on Render's free plan from `Dockerfile` + `render.yaml` | Team request. The laptop version stays the offline backup for the demo |
 | Team members in README: Shreya Mishra, Somanjali Singh, Chetna S Rao, Aishwarya Bright | Filled in by the team on 2026-11-05 |
 
 ## 4. Data

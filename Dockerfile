@@ -1,4 +1,4 @@
-# FLOODCAST web app for Hugging Face Spaces (Docker SDK) or any container host.
+# FLOODCAST web app for Render or any container host.
 # One process serves both apps: the HTML/CSS app at /  and the Gradio app at /gradio/
 FROM python:3.12-slim
 
@@ -6,7 +6,7 @@ FROM python:3.12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Hugging Face Spaces run the container as user 1000
+# Run as an unprivileged user (uid 1000)
 RUN useradd -m -u 1000 user
 USER user
 ENV HOME=/home/user \

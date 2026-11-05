@@ -5,7 +5,6 @@ temperature, soil moisture and catchment attributes, following the FLOODCAST pro
 On top of the model sits an **early-warning app**. It turns cfs into a flood risk level people can
 act on, up to 16 days ahead, in **English, Hindi and Kannada**.
 
-> **Setting this up with Claude Code (e.g. on the Windows laptop)?** Follow [`CLAUDE.md`](CLAUDE.md).
 > Project background, rules and decisions: [`CONTEXT.md`](CONTEXT.md).
 
 **Team:** Midnight Cowens
@@ -132,10 +131,6 @@ Free-plan limits: 512 MB RAM (the app uses about 0.3 GB, fine for the judges' fi
 service sleeps after 15 minutes without visitors (about a minute to wake). Keep the laptop version as
 the backup for the presentation: it also works offline.
 
-**Hugging Face Spaces** also works (`space_app.py`, `packages.txt`, `scripts/deploy_space.py`), but
-only on CPU hardware, which needs a PRO account; free accounts get ZeroGPU, which cannot run this CPU
-app.
-
 ## Practice test kit (`judge_test/`)
 
 Files in the organizers' format, built by `scripts/make_judge_kit.py` from fresh USGS + Open-Meteo
@@ -238,7 +233,7 @@ data/snapshot/         saved 16-day forecast (offline fallback)
 tests/                 120 tests: I/O robustness, validation rules, risk, languages, alerts, forecast fallback, app, web server, evaluation
 judge_test/            practice test kit in the organizers' format, with answers
 setup.bat, run_app.bat, predict.bat   Windows one-click scripts
-CLAUDE.md, CONTEXT.md  setup steps for Claude Code on Windows; project hand-over notes
+CONTEXT.md             project hand-over notes: rules, decisions and why
 ```
 
 _Research prototype, not an official flood warning system. Hindi and Kannada text is
