@@ -122,23 +122,120 @@ def coerce_frame(df: pd.DataFrame, require_target: bool = False) -> pd.DataFrame
 
 
 def make_submission(test: pd.DataFrame, pred: np.ndarray) -> pd.DataFrame:
-    """Build predictions.csv rows that echo test.csv's own id/date text, in test order."""
-    values = np.round(np.clip(np.nan_to_num(np.asarray(pred, dtype=float), nan=0.0), 0.0, None), 3)
+    """Build predictions.csv rows that echo test.csv's own id/date text, in test order.
+
+    Documented output transformation: discharge cannot be negative, so values are clipped at 0 and
+    rounded to 3 decimals. NaN/infinite model outputs are never filled in; they are rejected.
+    """
+    values = np.asarray(pred, dtype=float)
+    bad = ~np.isfinite(values)
+    if bad.any():
+        raise ValueError(f"the model returned {int(bad.sum())} NaN/infinite prediction(s), e.g. for "
+                         f"{_examples(zip(test[RAW_ID][bad], test[RAW_DATE][bad]))}; predictions.csv not written")
+    values = np.round(np.clip(values, 0.0, None), 3)
     return pd.DataFrame({ID_COL: test[RAW_ID].to_numpy(), DATE_COL: test[RAW_DATE].to_numpy(), TARGET: values})
 
 
-def validate_submission(pred: pd.DataFrame, test: pd.DataFrame) -> None:
-    """Apply every rejection rule from the brief before a file is written."""
+BLANK_VALUES = {"", "nan", "none", "null", "na", "n/a", "nat"}
+MAX_EXAMPLES = 3
+
+
+def _examples(items, k: int = MAX_EXAMPLES) -> str:
+    items = list(items)
+    shown = ", ".join("/".join(map(str, i)) if isinstance(i, tuple) else str(i) for i in items[:k])
+    return shown + (f" (+{len(items) - k} more)" if len(items) > k else "")
+
+
+def _is_blank(values: pd.Series) -> pd.Series:
+    return values.isna() | values.astype(str).str.strip().str.lower().isin(BLANK_VALUES)
+
+
+def validate_test_input(test: pd.DataFrame) -> None:
+    """Reject malformed test records before predicting: blank station ids and repeated
+    station_id/date pairs (each required key must appear exactly once). Dates were already
+    checked by parse_dates. Stations the model has never seen are valid (the brief requires them)."""
+    blank = _is_blank(test[RAW_ID])
+    if blank.any():
+        rows = (np.flatnonzero(blank.to_numpy()) + 2).tolist()  # +2: header line, 1-based
+        raise ValueError(f"{len(rows)} test row(s) have a blank station_id (file lines {_examples(rows)})")
+    dup = test.duplicated([ID_COL, DATE_COL], keep=False)
+    if dup.any():
+        repeated = test.loc[dup].drop_duplicates([ID_COL, DATE_COL])
+        examples = zip(repeated[ID_COL], repeated[DATE_COL].dt.strftime("%Y-%m-%d"))
+        raise ValueError(f"test.csv repeats {len(repeated)} station_id/date pair(s) across {int(dup.sum())} rows, "
+                         f"e.g. {_examples(examples)}; each pair must appear once")
+
+
+def validate_submission(pred: pd.DataFrame, test: pd.DataFrame) -> dict:
+    """Apply every rejection rule before a file is written; return a summary of what was checked.
+
+    Rules: exact columns; no malformed records; numeric, finite, non-negative discharge; no station
+    outside test.csv (unknown catchment); no date outside that station's test dates (unexpected
+    horizon); one prediction per key (no duplicates); no missing keys; same rows and order as test.csv.
+    """
     if list(pred.columns) != SUBMISSION_COLS:
         raise ValueError(f"columns must be exactly {SUBMISSION_COLS}, got {list(pred.columns)}")
-    if len(pred) != len(test):
-        raise ValueError(f"row count {len(pred)} != test rows {len(test)}")
-    values = pred[TARGET].to_numpy(dtype=float)
-    if not np.isfinite(values).all():
-        raise ValueError("predictions contain NaN or infinity")
+    malformed = _is_blank(pred[ID_COL]) | _is_blank(pred[DATE_COL])
+    if malformed.any():
+        raise ValueError(f"{int(malformed.sum())} prediction row(s) have a blank station_id or date")
+    numeric = pd.to_numeric(pred[TARGET], errors="coerce")
+    not_numeric = numeric.isna() & ~_is_blank(pred[TARGET])
+    if not_numeric.any():
+        raise ValueError(f"{int(not_numeric.sum())} prediction(s) are not numbers, e.g. "
+                         f"{_examples(pred.loc[not_numeric, TARGET])}")
+    values = numeric.to_numpy(dtype=float)
+    non_finite = ~np.isfinite(values)
+    if non_finite.any():
+        raise ValueError(f"{int(non_finite.sum())} prediction(s) are blank, NaN or infinity")
     if (values < 0).any():
-        raise ValueError("predictions contain negative discharge")
+        raise ValueError(f"{int((values < 0).sum())} prediction(s) are negative discharge")
+
     pred_keys = list(zip(pred[ID_COL].astype(str), pred[DATE_COL].astype(str)))
     test_keys = list(zip(test[RAW_ID].astype(str), test[RAW_DATE].astype(str)))
+    required, given = set(test_keys), set(pred_keys)
+    unknown = sorted({sid for sid, _ in pred_keys} - {sid for sid, _ in test_keys})
+    if unknown:
+        raise ValueError(f"{len(unknown)} station_id(s) are not in test.csv (unknown catchment): {_examples(unknown)}")
+    unexpected = sorted(given - required)
+    if unexpected:
+        raise ValueError(f"{len(unexpected)} prediction(s) are for dates not requested in test.csv "
+                         f"(unexpected horizon), e.g. {_examples(unexpected)}")
+    dup = pd.Series(pred_keys).duplicated()
+    if dup.any():
+        raise ValueError(f"{int(dup.sum())} duplicate prediction(s) for the same station_id/date, e.g. "
+                         f"{_examples(pd.Series(pred_keys)[dup])}")
+    missing = sorted(required - given)
+    if missing:
+        raise ValueError(f"{len(missing)} required station_id/date pair(s) have no prediction (submission would be "
+                         f"rejected), e.g. {_examples(missing)}")
+    if len(pred) != len(test):
+        raise ValueError(f"row count {len(pred)} != test rows {len(test)}")
     if pred_keys != test_keys:
         raise ValueError("station_id/date pairs do not match test.csv row-for-row")
+    return {"rows": len(pred), "stations": len({sid for sid, _ in pred_keys}), "missing": 0, "duplicates": 0,
+            "unknown_stations": 0, "unexpected_dates": 0, "non_finite": 0, "negative": 0}
+
+
+PROBABILITY_HINTS = ("prob", "coverage")
+
+
+def validate_risk_file(risk: pd.DataFrame, low: str, high: str, coverage: str) -> dict:
+    """Interval and probability checks for predictions_with_risk.csv: the coverage field is present
+    and a valid probability; bounds are finite, non-negative and ordered (low <= high); every
+    probability-like column is within [0, 1]."""
+    missing = [c for c in (low, high, coverage) if c not in risk]
+    if missing:
+        raise ValueError(f"risk file is missing required interval field(s): {missing}")
+    lo, hi = risk[low].to_numpy(dtype=float), risk[high].to_numpy(dtype=float)
+    if not (np.isfinite(lo).all() and np.isfinite(hi).all()):
+        raise ValueError("likely range contains NaN or infinity")
+    if (lo < 0).any():
+        raise ValueError("likely range has negative bounds")
+    if (lo > hi).any():
+        raise ValueError(f"{int((lo > hi).sum())} likely range(s) are out of order (low > high)")
+    for col in risk.columns:
+        if col == coverage or any(h in col.lower() for h in PROBABILITY_HINTS):
+            p = pd.to_numeric(risk[col], errors="coerce").to_numpy(dtype=float)
+            if not (np.isfinite(p).all() and ((p >= 0) & (p <= 1)).all()):
+                raise ValueError(f"{col} must hold probabilities between 0 and 1")
+    return {"intervals": len(risk), "intervals_ordered": True, "coverage": float(risk[coverage].iloc[0])}

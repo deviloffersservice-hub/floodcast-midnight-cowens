@@ -152,6 +152,23 @@ RMSE from 909 to 690 cfs; the known rivers' scores do not change.
 the same order, with `station_id` and `date` copied exactly as written in `test.csv`. All values
 are non-negative. The file is validated against every rejection rule before it is written.
 
+**Validation rules** (`floodcast/schema.py`; nothing is written if one fails):
+- `test.csv`: every row needs a station ID and a valid date, and each `station_id`/`date` pair
+  may appear only once (one prediction per key).
+- `predictions.csv`: exact columns; no blank or malformed records; numbers only, with no NaN or
+  infinity; no negative discharge; no station that isn't in `test.csv` (unknown catchment); no
+  date that `test.csv` didn't ask for (unexpected horizon); no duplicate and no missing
+  `station_id`/`date` pairs; same rows and order as `test.csv`.
+- Output transformation: model outputs below 0 are clipped to 0 and rounded to 3 decimals. A NaN
+  output is never filled in; it stops the run.
+- `predictions_with_risk.csv`: the likely range must be finite, non-negative and ordered
+  (low ≤ high); `likely_range_coverage` (0.80, the 10–90% band) and any probability column must
+  be between 0 and 1.
+- Rivers the model has never seen are **valid** (the brief requires them). "Unknown" means not in
+  `test.csv`.
+
+The Batch tab shows a **Submission checks** table with these results above the evaluation metrics.
+
 Files saved by Excel are handled:
 - UTF-8 with or without BOM, or Windows-1252 encoding;
 - station IDs with leading zeros stripped;
@@ -193,7 +210,7 @@ models/                trained LightGBM ensembles, station statistics, flood thr
 data/processed/        train.csv, test.csv (our held-out split), station metadata
 data/sample/           small example test file
 data/snapshot/         saved 16-day forecast (offline fallback)
-tests/                 79 tests: I/O robustness, risk, languages, alerts, forecast fallback, app
+tests/                 114 tests: I/O robustness, validation rules, risk, languages, alerts, forecast fallback, app, web server, evaluation
 judge_test/            practice test kit in the organizers' format, with answers
 setup.bat, run_app.bat, predict.bat   Windows one-click scripts
 CLAUDE.md, CONTEXT.md  setup steps for Claude Code on Windows; project hand-over notes

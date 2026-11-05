@@ -23,7 +23,9 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 from floodcast.features import KNOWN_FEATURES, UNSEEN_FEATURES, build_features, compute_station_stats  # noqa: E402
 from floodcast.model import Ensemble, FloodcastModel, fit  # noqa: E402
-from floodcast.schema import ID_COL, TARGET, make_submission, read_table, validate_submission  # noqa: E402
+from floodcast.schema import (  # noqa: E402
+    ID_COL, TARGET, make_submission, read_table, validate_submission, validate_test_input,
+)
 
 MODEL_DIR = ROOT / "models"
 PROC = ROOT / "data" / "processed"
@@ -68,11 +70,13 @@ def train(train_path: Path, rounds_scale: float = 1.0, warm_path: Path = PROC / 
 
 def predict(test_path: Path, out_path: Path, train_path: Path | None) -> pd.DataFrame:
     test = read_table(test_path)
+    validate_test_input(test)
     history = read_table(train_path, require_target=False) if train_path else None
     model = FloodcastModel.load(MODEL_DIR)
     pred = model.predict(test, history)
     out = make_submission(test, pred)
-    validate_submission(out, test)
+    checks = validate_submission(out, test)
+    log.info("submission checks passed: %s", checks)
     out.to_csv(out_path, index=False, encoding="utf-8", lineterminator="\n")
     log.info("wrote %d predictions to %s", len(out), out_path)
     return out

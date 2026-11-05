@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -189,6 +189,7 @@ def batch(
     test: UploadFile = File(...),
     train: UploadFile | None = File(None),
     answers: UploadFile | None = File(None),
+    robustness: bool = Form(False),
 ):
     tmp = Path(tempfile.mkdtemp())
 
@@ -200,13 +201,14 @@ def batch(
         return str(p)
 
     paths = (save(test), save(train), save(answers))
-    pred, risk, summary, preview, score = run(core.run_batch, *paths)
+    pred, risk, summary, preview, score, metrics = run(core.run_batch, *paths, robustness)
     return {
         "predictions": Path(pred).read_text(encoding="utf-8"),
         "risk": Path(risk).read_text(encoding="utf-8"),
         "summary": table_json(summary),
         "preview": table_json(preview),
         "score": score or "",
+        "metrics": metrics or "",
     }
 
 

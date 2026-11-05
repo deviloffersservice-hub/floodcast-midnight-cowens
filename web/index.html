@@ -98,6 +98,7 @@
       <label>test.csv <input type="file" id="f_test" accept=".csv"></label>
       <label>train.csv (optional) <input type="file" id="f_train" accept=".csv"></label>
       <label>answers.csv (optional) <input type="file" id="f_answers" accept=".csv"></label>
+      <label><input type="checkbox" id="f_robust"> Also run the robustness check (needs answers; slower)</label>
       <button id="batchBtn">Predict</button>
     </div>
     <div id="b_out" hidden>
@@ -107,6 +108,8 @@
       <div class="card scroll"><table id="b_sum"></table></div>
       <div class="head sub"><h3>Preview (first 200 rows)</h3></div>
       <div class="card scroll"><table id="b_prev"></table></div>
+      <div class="head sub"><h3>Submission checks and evaluation metrics</h3></div>
+      <div id="b_metrics" class="card scroll"></div>
     </div>
   </section>
 

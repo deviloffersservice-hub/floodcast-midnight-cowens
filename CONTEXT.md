@@ -49,6 +49,12 @@ During the event, the live leaderboard uses raw RMSE only.
 
 `floodcast/schema.py:validate_submission` enforces all of this before any file is written.
 
+**Team validation rules** (added 2026-11-05; details in README "Input / output contract"): reject
+unknown catchment IDs (= not in test.csv; never-seen rivers stay valid), unexpected dates, NaN,
+infinity, invalid probabilities and malformed records; non-negative discharge (clipping at 0 is the
+documented transformation); ordered intervals with a coverage field; one prediction per key, so a
+test.csv that repeats a key is rejected; missing keys are listed and the file is rejected.
+
 **Disqualified:**
 - negative values;
 - missing rows;
@@ -181,6 +187,7 @@ floodcast/schema.py      reading messy CSVs (Excel, BOM, cp1252, ; and tab, dd/m
 floodcast/features.py    feature engineering, cold-start fill
 floodcast/model.py       LightGBM ensembles, save/load (models/model_meta.json)
 floodcast/metrics.py     the brief's metrics
+floodcast/evaluation.py  Batch-tab evaluation: 8 metric families (needs an answers file)
 floodcast/risk.py        risk levels + likely range
 floodcast/forecast.py    live 16-day forecast, cache, offline snapshot, replay
 floodcast/product.py     outlooks, what-if
@@ -195,20 +202,21 @@ judge_test/              practice test kit + answers
 reports/                 metrics, alert skill, replay events, holdout predictions, slides.pdf, screenshots
 scripts/                 data download, dataset build, evaluation, thresholds, kit, slides,
                          verify_install.py (install check), score_kit.py (practice-kit scores)
-tests/                   pytest suite (79 tests)
+tests/                   pytest suite (114 tests)
 setup.bat, run_app.bat, predict.bat   Windows double-click scripts
 ```
 
 ## 8. How correctness is checked
 
-- `pytest -q tests`: **79 tests** covering:
-  - messy inputs and the output rules;
+- `pytest -q tests`: **114 tests** covering:
+  - messy inputs and the validation rules;
   - risk levels;
   - all 3 languages;
   - alerts;
   - forecast fallback;
   - the app handlers;
-  - practice-kit scoring.
+  - practice-kit scoring;
+  - the Batch tab's evaluation metrics (8 families).
 - `python scripts/verify_install.py`: re-predicts the holdout and compares it with the committed
   `predictions.csv` (byte-identical on the Mac, within tolerance on other CPUs), then scores the
   practice kit.

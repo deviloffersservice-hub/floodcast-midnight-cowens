@@ -65,13 +65,28 @@ def test_batch_tab_separated_matches_comma_csv(tmp_path, sample, baseline):
     assert np.array_equal(_preds(app.run_batch(str(path), None)[0]), baseline)
 
 
-def test_batch_keeps_duplicates_and_order(tmp_path, sample):
-    messy = pd.concat([sample.sample(frac=1, random_state=3), sample.head(5)])
+def test_batch_keeps_shuffled_order(tmp_path, sample):
+    messy = sample.sample(frac=1, random_state=3)
     path = tmp_path / "messy.csv"
     messy.to_csv(path, index=False)
     out = pd.read_csv(app.run_batch(str(path), None)[0], dtype=str)
     assert len(out) == len(messy)
     assert (out["date"].to_numpy() == messy["date"].to_numpy()).all()
+
+
+def test_batch_rejects_repeated_station_date_pairs(tmp_path, sample):
+    """Rule: one prediction per required key, so a test.csv that repeats a key is rejected."""
+    path = tmp_path / "dup.csv"
+    pd.concat([sample, sample.head(5)]).to_csv(path, index=False)
+    with pytest.raises(gr.Error, match="repeats 5 station_id/date pair"):
+        app.run_batch(str(path), None)
+
+
+def test_batch_shows_submission_checks_and_coverage_field(sample):
+    result = app.run_batch(str(SAMPLE), None)
+    risk = pd.read_csv(result[1])
+    assert (risk["likely_range_coverage"] == 0.8).all()
+    assert "Submission checks: passed" in result[5]
 
 
 def test_batch_missing_weather_still_valid(tmp_path, sample):

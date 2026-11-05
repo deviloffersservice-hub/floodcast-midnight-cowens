@@ -5,7 +5,8 @@ Tabs
                        shareable WhatsApp alert, in English / Hindi / Kannada.
   2. Officer dashboard  all stations on a map, ranked by risk, hydrograph with flood bands,
                        likely range, why, what-if rainfall, CAP alert export.
-  3. Batch             test.csv -> predictions.csv (official format) + optional risk file.
+  3. Batch             test.csv -> predictions.csv (official format) + optional risk file;
+                       with an answers file, 8 families of evaluation metrics.
   4. Manual input      type one day's values.
 Modes: live 16-day forecast (Open-Meteo; cached; offline snapshot fallback) or replay of a
 past flood from stored data (fully offline).
@@ -24,6 +25,7 @@ import gradio as gr  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
+from floodcast import evaluation  # noqa: E402
 from floodcast.alerts import CFS_PER_CMS, alert_text, cap_xml, whatsapp_link  # noqa: E402
 from floodcast.forecast import (  # noqa: E402
     FORECAST_DAYS, OBS_COL, ForecastUnavailable, live_weather, recent_observed, replay_weather,
@@ -32,9 +34,10 @@ from floodcast.i18n import LANGS, lang_code, t  # noqa: E402
 from floodcast.metrics import score  # noqa: E402
 from floodcast.model import FloodcastModel  # noqa: E402
 from floodcast.product import outlooks, ranking, what_if  # noqa: E402
-from floodcast.risk import LEVELS, RiskTable  # noqa: E402
+from floodcast.risk import LEVELS, LIKELY_RANGE_COVERAGE, RiskTable  # noqa: E402
 from floodcast.schema import (  # noqa: E402
-    DATE_COL, ID_COL, STATIC_COLS, TARGET, coerce_frame, make_submission, read_table, validate_submission,
+    DATE_COL, ID_COL, STATIC_COLS, TARGET, coerce_frame, make_submission, read_table, validate_risk_file,
+    validate_submission, validate_test_input,
 )
 from floodcast.views import CARD_CSS, card_html, hydrograph, ranking_table, risk_map  # noqa: E402
 
@@ -263,7 +266,45 @@ def kit_description(kit_dir: Path = EXAMPLE_DIR) -> str:
             "dd/mm/yyyy dates, soil in %); it gives identical predictions.")
 
 
-def run_batch(test_file, train_file, answers_file=None):
+def evaluation_markdown(test: pd.DataFrame, history: pd.DataFrame | None, pred: np.ndarray, lo: np.ndarray,
+                        hi: np.ndarray, answers: pd.DataFrame | None, seconds: float, with_robustness: bool) -> str:
+    """The 8 metric families. Without answers only efficiency can be measured."""
+    tables = {"efficiency": evaluation.efficiency(len(test), seconds, ROOT / "models")}
+    if answers is None:
+        return (evaluation.report_markdown(tables) + "\n\n<small>Upload the answers file (true discharge) to also "
+                "see accuracy, flood-day detection, alert burden, uncertainty and robustness.</small>")
+    truth = answers.dropna(subset=[TARGET]).drop_duplicates([ID_COL, DATE_COL]).set_index([ID_COL, DATE_COL])[TARGET]
+    obs = truth.reindex(pd.MultiIndex.from_arrays([test[ID_COL], test[DATE_COL]])).to_numpy(dtype=float)
+    matched = np.isfinite(obs)
+    if not matched.any():
+        return evaluation.report_markdown(tables)
+    known = test[ID_COL].astype(str).isin(set(MODEL.station_stats[ID_COL].astype(str))).to_numpy()
+    frame = evaluation.scored_frame(test[ID_COL].to_numpy()[matched], test[DATE_COL].to_numpy()[matched],
+                                    pred[matched], obs[matched], lo[matched], hi[matched], known[matched])
+    tables |= evaluation.evaluate(frame, RISK)
+    if with_robustness:
+        tables["robustness"] = evaluation.robustness(
+            test, lambda t: MODEL.predict_features(*MODEL.featurize(t, history)), obs[matched], matched, pred)
+    return evaluation.report_markdown(tables)
+
+
+def checks_markdown(checks: dict, test: pd.DataFrame) -> str:
+    """What the submission validator verified, shown above the metrics."""
+    ids = set(test[ID_COL].astype(str))
+    known = len(ids & set(MODEL.station_stats[ID_COL].astype(str)))
+    return ("## Submission checks: passed ✓\n\n"
+            "| Rows | Stations (known / new) | Missing | Duplicates | Unknown stations | Unexpected dates "
+            "| NaN / infinity | Negative | Intervals ordered | Interval coverage |\n"
+            "|---|---|---|---|---|---|---|---|---|---|\n"
+            f"| {checks['rows']:,} | {checks['stations']} ({known} / {len(ids) - known}) | {checks['missing']} "
+            f"| {checks['duplicates']} | {checks['unknown_stations']} | {checks['unexpected_dates']} "
+            f"| {checks['non_finite']} | {checks['negative']} | {'yes' if checks['intervals_ordered'] else 'no'} "
+            f"| {checks['coverage']:.0%} (10–90%) |\n\n"
+            "<small>“Unknown” = not in test.csv; rivers the model has never seen are allowed and counted as "
+            "*new*. Discharge is clipped at 0 (documented transformation); NaN is never filled in.</small>")
+
+
+def run_batch(test_file, train_file, answers_file=None, with_robustness=False):
     if test_file is None:
         raise gr.Error("Upload test.csv first.")
     try:
@@ -276,24 +317,38 @@ def run_batch(test_file, train_file, answers_file=None):
         raise gr.Error(f"Could not read the file: {exc}") from exc
     if test.empty:
         raise gr.Error("test.csv has a header but no data rows.")
+    try:
+        validate_test_input(test)
+    except ValueError as exc:
+        raise gr.Error(f"test.csv rejected: {exc}") from exc
     if answers is not None and TARGET not in answers:
         raise gr.Error(f"The answers file needs a '{TARGET}' column.")
-    feats, has_stats = MODEL.featurize(test, history)
-    pred = MODEL.predict_features(feats, has_stats)
-    out = make_submission(test, pred)
-    validate_submission(out, test)
+    (feats, has_stats), seconds_feats = evaluation.timed(lambda: MODEL.featurize(test, history))
+    pred, seconds_pred = evaluation.timed(lambda: MODEL.predict_features(feats, has_stats))
+    try:
+        out = make_submission(test, pred)
+        checks = validate_submission(out, test)
+    except ValueError as exc:
+        raise gr.Error(f"predictions.csv not written: {exc}") from exc
     tmp = Path(tempfile.mkdtemp())
     out.to_csv(tmp / "predictions.csv", index=False, encoding="utf-8", lineterminator="\n")
     lo, hi = RISK.bounds(test[ID_COL].to_numpy(), out[TARGET].to_numpy(), has_stats)
     levels = RISK.levels(test[ID_COL].to_numpy(), out[TARGET].to_numpy())
     risk = out.assign(risk_level=[LEVELS[k] if k >= 0 else "unknown" for k in levels],
-                      likely_low_cfs=np.round(lo, 1), likely_high_cfs=np.round(hi, 1))
+                      likely_low_cfs=np.floor(lo * 10) / 10, likely_high_cfs=np.ceil(hi * 10) / 10,
+                      likely_range_coverage=LIKELY_RANGE_COVERAGE)
+    try:
+        checks |= validate_risk_file(risk, "likely_low_cfs", "likely_high_cfs", "likely_range_coverage")
+    except ValueError as exc:
+        raise gr.Error(f"predictions_with_risk.csv not written: {exc}") from exc
     risk.to_csv(tmp / "predictions_with_risk.csv", index=False, encoding="utf-8", lineterminator="\n")
     summary = risk.groupby(ID_COL).agg(rows=(TARGET, "size"), mean_cfs=(TARGET, "mean"), max_cfs=(TARGET, "max"),
                                        highest_risk=("risk_level", lambda s: max(s, key=_level_rank))).reset_index()
     scored = score_markdown(test, out[TARGET].to_numpy(), answers) if answers is not None else ""
+    metrics_md = "\n\n".join([checks_markdown(checks, test), evaluation_markdown(
+        test, history, out[TARGET].to_numpy(), lo, hi, answers, seconds_feats + seconds_pred, bool(with_robustness))])
     return (str(tmp / "predictions.csv"), str(tmp / "predictions_with_risk.csv"), summary.round(1), out.head(200),
-            scored)
+            scored, metrics_md)
 
 
 # ---------------- Tab 4: Manual ----------------
@@ -424,6 +479,8 @@ def build() -> gr.Blocks:
                 f_train = gr.File(label="train.csv (optional)", file_types=[".csv"], type="filepath", min_width=260)
                 f_answers = gr.File(label="answers.csv (optional: shows accuracy)", file_types=[".csv"],
                                     type="filepath", min_width=260)
+            robust = gr.Checkbox(value=False, label="Also run the robustness check (needs answers; predicts 6 more "
+                                 "times, so it is slower on big files)")
             b = gr.Button("Predict", variant="primary")
             with gr.Column(visible=False) as batch_out:
                 score_md = gr.Markdown()
@@ -433,7 +490,10 @@ def build() -> gr.Blocks:
                                         min_width=300)
                 out_summary = gr.Dataframe(label="Per-station summary", wrap=True)
                 out_table = gr.Dataframe(label="Preview (first 200 rows)", wrap=True, max_height=420)
-            b.click(run_batch, [f_test, f_train, f_answers], [out_file, risk_file, out_summary, out_table, score_md]
+                with gr.Accordion("Evaluation metrics (8 families)", open=True):
+                    metrics_md = gr.Markdown()
+            b.click(run_batch, [f_test, f_train, f_answers, robust],
+                    [out_file, risk_file, out_summary, out_table, score_md, metrics_md]
                     ).success(_show, None, batch_out)
             if EXAMPLE_FILES:
                 with gr.Accordion("Practice files (download, then upload above)", open=False):

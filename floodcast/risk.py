@@ -68,6 +68,9 @@ def compute_threshold_table(frame: pd.DataFrame, flow_col: str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+LIKELY_RANGE_COVERAGE = 0.80  # the likely range is the 10th-90th percentile band
+
+
 @dataclass(frozen=True)
 class RiskTable:
     model_thr: pd.DataFrame   # station_id + LEVELS[1:] in cfs (model climate) -> used to classify
@@ -104,7 +107,8 @@ class RiskTable:
         return {k: float(row.iloc[0][k]) for k in LEVELS[1:] if np.isfinite(row.iloc[0][k])}
 
     def bounds(self, station_ids, flows: np.ndarray, has_history: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """10th-90th percentile likely range (split-conformal, residuals from 2021-22)."""
+        """10th-90th percentile likely range (split-conformal, residuals from 2021-22); nominal
+        coverage LIKELY_RANGE_COVERAGE."""
         ids = np.asarray(station_ids, dtype=str)
         iv = self.intervals.set_index(ID_COL)
         glob = iv.loc[GLOBAL_KEY]
@@ -116,7 +120,8 @@ class RiskTable:
             lo[known] = iv.loc[ids[known], "log_lo"].to_numpy(dtype=float)
             hi[known] = iv.loc[ids[known], "log_hi"].to_numpy(dtype=float)
         base = np.log1p(np.clip(np.asarray(flows, dtype=float), 0, None))
-        return np.expm1(np.maximum(base + lo, 0.0)), np.expm1(base + hi)
+        # both bounds floored at 0 in log space, so low <= high and neither is negative
+        return np.expm1(np.maximum(base + lo, 0.0)), np.expm1(np.maximum(base + hi, 0.0))
 
 
 def classify(ids: np.ndarray, flows: np.ndarray, thr: pd.DataFrame) -> np.ndarray:

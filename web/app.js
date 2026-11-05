@@ -46,14 +46,16 @@ function table(el, t) {
     t.rows.map(r => '<tr>' + r.map(c => `<td>${cell(c)}</td>`).join('') + '</tr>').join('') + '</tbody>';
 }
 function md(s) {
-  const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\s)_(.+?)_(?=\s|$)/g, '$1<i>$2</i>');
+  const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|\s)_(.+?)_(?=\s|$)/g, '$1<i>$2</i>')
+    .replace(/(^|[\s(])\*([^*\s][^*]*?)\*(?=[\s.,;:)]|$)/g, '$1<i>$2</i>');
   let out = '', rows = [];
   const flush = () => { if (!rows.length) return;
     out += '<table>' + rows.map((r, i) => '<tr>' + r.map(c => `<${i ? 'td' : 'th'}>${inline(c)}</${i ? 'td' : 'th'}>`).join('') + '</tr>').join('') + '</table>'; rows = []; };
   for (const line of s.split('\n')) {
     if (line.trim().startsWith('|')) { if (!/^\|[\s|:-]+\|?$/.test(line.trim())) rows.push(line.trim().replace(/^\||\|$/g, '').split('|').map(x => x.trim())); continue; }
     flush();
-    if (line.startsWith('###')) out += `<h3>${inline(line.replace(/^#+\s*/, ''))}</h3>`;
+    if (/^#{2,3}\s/.test(line)) out += `<h3>${inline(line.replace(/^#+\s*/, ''))}</h3>`;
+    else if (/^<small>.*<\/small>$/.test(line.trim())) out += `<p class="note">${inline(line.trim().slice(7, -8))}</p>`;
     else if (line.trim()) out += `<p>${inline(line)}</p>`;
   }
   flush(); return out;
@@ -153,10 +155,12 @@ $('#batchBtn').onclick = e => busy(e.target, async () => {
   const fd = new FormData(); fd.append('test', $('#f_test').files[0]);
   if ($('#f_train').files[0]) fd.append('train', $('#f_train').files[0]);
   if ($('#f_answers').files[0]) fd.append('answers', $('#f_answers').files[0]);
+  fd.append('robustness', $('#f_robust').checked ? 'true' : 'false');
   const r = await fetch('/api/batch', {method: 'POST', body: fd}); const d = await r.json();
   if (!r.ok) throw new Error(d.detail || 'Request failed');
   $('#b_out').hidden = false; $('#b_score').innerHTML = md(d.score);
   table($('#b_sum'), d.summary); table($('#b_prev'), d.preview);
+  $('#b_metrics').innerHTML = md(d.metrics);
   download($('#dlPred'), 'predictions.csv', d.predictions); download($('#dlRisk'), 'predictions_with_risk.csv', d.risk);
 });
 
