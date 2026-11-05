@@ -108,6 +108,7 @@ The BASINSHIFT document adds a requirement: **declare all external data** (done 
 | 10 extra GAGES-II stations **not** used in the final model | New-station CV got slightly worse in both folds. Kept as opt-in (`scripts/add_stations.py`, `build_dataset.py --with-extra`) |
 | Product layer for two users: a riverside resident and a district disaster officer, in English, Hindi and Kannada | Stand-out on user point of view. Accuracy still decides the winner |
 | Local app (Gradio), no hosting | Runs on the laptop. Offline replay plus a saved-forecast fallback mean the demo survives a network failure |
+| Also deployed online (2026-11-05): `server.py` serves the HTML/CSS app at `/` and the Gradio app at `/gradio/`, on Render's free plan from `Dockerfile` + `render.yaml` (Hugging Face needs PRO for CPU hardware; free accounts only get ZeroGPU) | Team request. The laptop version stays the offline backup for the demo |
 | Team member names left as TODO in README | The team fills them in |
 
 ## 4. Data

@@ -113,6 +113,29 @@ python scripts/verify_install.py   # install check: predictions.csv reproduces +
 python scripts/score_kit.py        # practice-kit scores: known vs never-seen rivers, with/without history
 ```
 
+## Online version (Render)
+
+`server.py` serves both apps from one address: the HTML/CSS app at `/` and the Gradio app (English,
+Hindi, Kannada) at `/gradio/`. The `Dockerfile` builds it (Python 3.12, the pinned packages) and
+`render.yaml` describes a free Render web service.
+
+Run it locally the same way: `python server.py`, then open <http://127.0.0.1:8000>.
+
+**Deploy on Render (free, no card):**
+1. Sign in at <https://render.com> with GitHub.
+2. **New → Blueprint**, pick this repository; Render reads `render.yaml` (Docker, free plan). Or
+   **New → Web Service**, pick the repo, Language **Docker**, Instance type **Free**.
+3. Each push to `main` redeploys automatically.
+
+Free-plan limits: 512 MB RAM (the app uses about 0.3 GB, fine for the judges' file size; a file of
+100k+ rows may run out of memory), a small CPU share (the first start takes a few minutes), and the
+service sleeps after 15 minutes without visitors (about a minute to wake). Keep the laptop version as
+the backup for the presentation: it also works offline.
+
+**Hugging Face Spaces** also works (`space_app.py`, `packages.txt`, `scripts/deploy_space.py`), but
+only on CPU hardware, which needs a PRO account; free accounts get ZeroGPU, which cannot run this CPU
+app.
+
 ## Practice test kit (`judge_test/`)
 
 Files in the organizers' format, built by `scripts/make_judge_kit.py` from fresh USGS + Open-Meteo

@@ -1,10 +1,15 @@
-"""Run:  python server.py   then open http://127.0.0.1:8000"""
+"""Run:  python server.py   then open http://127.0.0.1:8000  (the Gradio app is at /gradio/)
+
+HOST and PORT environment variables override the address (the Docker image uses 0.0.0.0:7860).
+"""
 import base64
+import os
 import io
 import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 
+import gradio as gr
 import pandas as pd
 import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -224,7 +229,9 @@ def manual(b: Manual):
     return {"md": text}
 
 
+# The original Gradio app (all 3 languages) under /gradio/, mounted before the catch-all static site.
+api = gr.mount_gradio_app(api, core.demo, path="/gradio", css=core.APP_CSS, theme=core.APP_THEME)
 api.mount("/", StaticFiles(directory=Path(__file__).parent / "web", html=True))
 
 if __name__ == "__main__":
-    uvicorn.run(api, host="127.0.0.1", port=8000)
+    uvicorn.run(api, host=os.environ.get("HOST", "127.0.0.1"), port=int(os.environ.get("PORT", "8000")))

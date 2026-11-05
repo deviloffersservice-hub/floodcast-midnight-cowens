@@ -1,0 +1,12 @@
+.git
+.venv
+**/__pycache__
+.pytest_cache
+data/raw
+data/cache
+data/processed/train*.csv
+data/processed/test*.csv
+data/processed/warmup*.parquet
+data/processed/full_daily_all.parquet
+reports/holdout_predictions_eval.csv
+reports/slides.pdf

@@ -1,0 +1,10 @@
+# Render Blueprint: free web service built from the Dockerfile (both apps: / and /gradio/).
+# Render sets the PORT environment variable; server.py listens on it (HOST=0.0.0.0 in the Dockerfile).
+services:
+  - type: web
+    name: floodcast
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/meta
+    autoDeploy: true
