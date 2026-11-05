@@ -39,3 +39,17 @@ def test_batch_rejects_repeated_keys_with_clear_message(tmp_path):
     with bad.open("rb") as f:
         r = client.post("/api/batch", files={"test": ("test.csv", f, "text/csv")})
     assert r.status_code == 400 and "repeats 1 station_id/date pair" in r.json()["detail"]
+
+
+def test_page_has_remove_buttons_for_each_file():
+    html = client.get("/").text
+    for field in ("f_test", "f_train", "f_answers"):
+        assert f'data-for="{field}"' in html
+    assert 'id="clearFiles"' in html
+
+
+@pytest.mark.skipif(not (KIT / "answers.csv").exists(), reason="practice kit not built")
+def test_answers_uploaded_as_train_is_rejected():
+    with (KIT / "test.csv").open("rb") as t, (KIT / "answers.csv").open("rb") as a:
+        r = client.post("/api/batch", files={"test": ("test.csv", t, "text/csv"), "train": ("answers.csv", a, "text/csv")})
+    assert r.status_code == 400 and "upload it in the answers box" in r.json()["detail"]

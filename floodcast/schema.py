@@ -166,6 +166,20 @@ def validate_test_input(test: pd.DataFrame) -> None:
                          f"e.g. {_examples(examples)}; each pair must appear once")
 
 
+def validate_history(history: pd.DataFrame, test: pd.DataFrame) -> None:
+    """Leakage guard for the optional train/history file: it must not hold discharge for any
+    station_id/date that is being predicted (e.g. the answers file uploaded in the wrong box)."""
+    if TARGET not in history:
+        return
+    labelled = history[history[TARGET].notna()]
+    overlap = labelled.merge(test[[ID_COL, DATE_COL]].drop_duplicates(), on=[ID_COL, DATE_COL])
+    if not overlap.empty:
+        examples = zip(overlap[ID_COL], overlap[DATE_COL].dt.strftime("%Y-%m-%d"))
+        raise ValueError(f"train.csv has discharge for {len(overlap):,} station_id/date pair(s) that are in test.csv, "
+                         f"e.g. {_examples(examples)}. That is the answer for the days being predicted (leakage): "
+                         "if this is the answers file, upload it in the answers box instead")
+
+
 def validate_submission(pred: pd.DataFrame, test: pd.DataFrame) -> dict:
     """Apply every rejection rule before a file is written; return a summary of what was checked.
 

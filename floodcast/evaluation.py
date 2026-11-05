@@ -30,12 +30,25 @@ DAYS_PER_YEAR = 365.25
 RELIABILITY_BINS = [0, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0]
 CORRUPTION_SEED = 0
 GROUPS = ("all", "known", "new")
+CLOSE_TOLERANCE = 0.25                   # a prediction within ±25% of the true flow counts as close
+MIN_FLOW_CFS = 1.0                       # tolerance floor for (near-)dry days
 
 
 # ---------------- helpers ----------------
 def _nse(y: np.ndarray, p: np.ndarray) -> float:
     denom = np.sum((y - y.mean()) ** 2)
     return float(1 - np.sum((y - p) ** 2) / denom) if denom > 0 else float("nan")
+
+
+def accuracy_pct(y: np.ndarray, p: np.ndarray) -> float:
+    """Volume-weighted accuracy = 1 - WAPE = 1 - sum|error| / sum(true flow), floored at 0."""
+    total = float(np.sum(np.abs(y)))
+    return max(0.0, 1 - float(np.sum(np.abs(y - p))) / total) if total > 0 else float("nan")
+
+
+def within_pct(y: np.ndarray, p: np.ndarray, tol: float = CLOSE_TOLERANCE) -> float:
+    """Share of days whose prediction is within ±tol of the true flow."""
+    return float(np.mean(np.abs(y - p) <= tol * np.maximum(y, MIN_FLOW_CFS))) if len(y) else float("nan")
 
 
 def _groups(frame: pd.DataFrame):
@@ -91,7 +104,8 @@ def per_river(frame: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for sid, g in frame.groupby(ID_COL):
         y, p = g.obs.to_numpy(), g.pred.to_numpy()
-        rows.append({"River": sid, "Group": g.group.iloc[0], "Rows": len(g), "NSE": _nse(y, p),
+        rows.append({"River": sid, "Group": g.group.iloc[0], "Rows": len(g), "Accuracy": accuracy_pct(y, p),
+                     "Days within ±25%": within_pct(y, p), "NSE": _nse(y, p),
                      "log-NSE": _nse(np.log1p(y), np.log1p(p)), "MAE (cfs)": float(np.mean(np.abs(y - p))),
                      "Normalised MAE": float(np.mean(np.abs(y - p)) / y.mean()) if y.mean() > 0 else np.nan,
                      "RMSE (cfs)": float(np.sqrt(np.mean((y - p) ** 2)))})
@@ -105,6 +119,8 @@ def continuous_and_generalization(frame: pd.DataFrame, rivers: pd.DataFrame) -> 
         r = rivers if name == "all" else rivers[rivers.Group == name]
         y, p = part.obs.to_numpy(), part.pred.to_numpy()
         rows.append({"Rivers": name, "Count": part[ID_COL].nunique(), "Rows": len(part),
+                     "Accuracy (all rows)": accuracy_pct(y, p), "Accuracy (avg per river)": r.Accuracy.mean(),
+                     "Days within ±25%": within_pct(y, p),
                      "NSE (all rows)": _nse(y, p), "NSE (avg per river)": r.NSE.mean(),
                      "log-NSE (avg per river)": r["log-NSE"].mean(), "MAE (cfs)": float(np.mean(np.abs(y - p))),
                      "Normalised MAE (avg per river)": r["Normalised MAE"].mean()})
@@ -231,7 +247,8 @@ def efficiency(rows: int, seconds: float, model_dir: Path) -> pd.DataFrame:
 
 
 # ---------------- markdown ----------------
-_PERCENT = ("Coverage", "Precision", "Recall", "POD", "FAR", "change", "Observed frequency", "Forecast probability")
+_PERCENT = ("Accuracy", "within", "Coverage", "Precision", "Recall", "POD", "FAR", "change",
+            "Observed frequency", "Forecast probability")
 _INTEGER = ("Rows", "Count", "days", "Days", "Hits", "alarms", "(cfs)", "per second")
 
 
@@ -263,8 +280,9 @@ def to_markdown(table: pd.DataFrame) -> str:
 
 SECTIONS = [
     ("continuous", "1 · Continuous forecast + 6 · Generalization",
-     "NSE: 1 is perfect, 0 is no better than the river's own average. *All rows* is dominated by the largest "
-     "river; *avg per river* weighs each river equally. *known* = rivers the model trained on, *new* = never seen."),
+     "Accuracy = 100% − total error ÷ total true flow. Days within ±25%: share of days the prediction was "
+     "within a quarter of the true flow. NSE: 1 is perfect, 0 is no better than the river's own average. "
+     "*All rows* is dominated by the largest river; *avg per river* weighs each river equally. *known* = rivers the model trained on, *new* = never seen."),
     ("per_river", "Per river", ""),
     ("events", "2 · Event detection (flood day = a river's top-10% observed days)",
      "AUPRC: how well the forecast ranks flood days first (higher is better; compare with *if random*). "

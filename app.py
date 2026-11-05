@@ -36,8 +36,8 @@ from floodcast.model import FloodcastModel  # noqa: E402
 from floodcast.product import outlooks, ranking, what_if  # noqa: E402
 from floodcast.risk import LEVELS, LIKELY_RANGE_COVERAGE, RiskTable  # noqa: E402
 from floodcast.schema import (  # noqa: E402
-    DATE_COL, ID_COL, STATIC_COLS, TARGET, coerce_frame, make_submission, read_table, validate_risk_file,
-    validate_submission, validate_test_input,
+    DATE_COL, ID_COL, STATIC_COLS, TARGET, coerce_frame, make_submission, read_table, validate_history,
+    validate_risk_file, validate_submission, validate_test_input,
 )
 from floodcast.views import CARD_CSS, card_html, hydrograph, ranking_table, risk_map  # noqa: E402
 
@@ -247,10 +247,17 @@ def score_markdown(test: pd.DataFrame, pred: np.ndarray, answers: pd.DataFrame) 
     both = keyed.merge(truth, on=[ID_COL, DATE_COL], how="inner")
     if both.empty:
         raise gr.Error("No answers matched the test rows: check station_id and date in the answers file.")
-    m = score(both[TARGET].to_numpy(), both["pred"].to_numpy(), both[ID_COL].to_numpy())
+    y, p = both[TARGET].to_numpy(dtype=float), both["pred"].to_numpy(dtype=float)
+    m = score(y, p, both[ID_COL].to_numpy())
     return (f"### Accuracy against the answers ({len(both):,} of {len(test):,} rows matched)\n"
+            f"| Accuracy | Days within ±25% | Variation explained (R²) |\n|---|---|---|\n"
+            f"| **{evaluation.accuracy_pct(y, p):.1%}** | **{evaluation.within_pct(y, p):.1%}** "
+            f"| **{max(m['r2'], 0):.1%}** |\n\n"
             f"| RMSE | RMSE on top-10% days | MAE | R² |\n|---|---|---|---|\n"
-            f"| {m['rmse']:,.0f} cfs | {m['rmse_extreme']:,.0f} cfs | {m['mae']:,.0f} cfs | {m['r2']:.3f} |")
+            f"| {m['rmse']:,.0f} cfs | {m['rmse_extreme']:,.0f} cfs | {m['mae']:,.0f} cfs | {m['r2']:.3f} |\n\n"
+            "<small>Accuracy = 100% − total error ÷ total true flow. Days within ±25% = share of days the "
+            "prediction was within a quarter of the true flow. R² = share of the ups and downs the model "
+            "explains. The judges score RMSE, top-10% RMSE, MAE and R².</small>")
 
 
 def kit_description(kit_dir: Path = EXAMPLE_DIR) -> str:
@@ -272,7 +279,7 @@ def evaluation_markdown(test: pd.DataFrame, history: pd.DataFrame | None, pred: 
     tables = {"efficiency": evaluation.efficiency(len(test), seconds, ROOT / "models")}
     if answers is None:
         return (evaluation.report_markdown(tables) + "\n\n<small>Upload the answers file (true discharge) to also "
-                "see accuracy, flood-day detection, alert burden, uncertainty and robustness.</small>")
+                "see accuracy (in %), flood-day detection, alert burden, uncertainty and robustness.</small>")
     truth = answers.dropna(subset=[TARGET]).drop_duplicates([ID_COL, DATE_COL]).set_index([ID_COL, DATE_COL])[TARGET]
     obs = truth.reindex(pd.MultiIndex.from_arrays([test[ID_COL], test[DATE_COL]])).to_numpy(dtype=float)
     matched = np.isfinite(obs)
@@ -321,6 +328,11 @@ def run_batch(test_file, train_file, answers_file=None, with_robustness=False):
         validate_test_input(test)
     except ValueError as exc:
         raise gr.Error(f"test.csv rejected: {exc}") from exc
+    if history is not None:
+        try:
+            validate_history(history, test)
+        except ValueError as exc:
+            raise gr.Error(f"train.csv rejected: {exc}") from exc
     if answers is not None and TARGET not in answers:
         raise gr.Error(f"The answers file needs a '{TARGET}' column.")
     (feats, has_stats), seconds_feats = evaluation.timed(lambda: MODEL.featurize(test, history))
@@ -481,7 +493,9 @@ def build() -> gr.Blocks:
                                     type="filepath", min_width=260)
             robust = gr.Checkbox(value=False, label="Also run the robustness check (needs answers; predicts 6 more "
                                  "times, so it is slower on big files)")
-            b = gr.Button("Predict", variant="primary")
+            with gr.Row():
+                b = gr.Button("Predict", variant="primary", scale=3)
+                clear_files = gr.Button("Remove all files", variant="secondary", scale=1)
             with gr.Column(visible=False) as batch_out:
                 score_md = gr.Markdown()
                 with gr.Row():
@@ -492,6 +506,8 @@ def build() -> gr.Blocks:
                 out_table = gr.Dataframe(label="Preview (first 200 rows)", wrap=True, max_height=420)
                 with gr.Accordion("Evaluation metrics (8 families)", open=True):
                     metrics_md = gr.Markdown()
+            clear_files.click(lambda: (None, None, None, False, gr.update(visible=False)), None,
+                              [f_test, f_train, f_answers, robust, batch_out])
             b.click(run_batch, [f_test, f_train, f_answers, robust],
                     [out_file, risk_file, out_summary, out_table, score_md, metrics_md]
                     ).success(_show, None, batch_out)

@@ -150,6 +150,14 @@ $('#detailBtn').onclick = e => busy(e.target, detail);
 $('#pick').onchange = () => busy($('#detailBtn'), detail);
 
 // Batch
+const FILE_IDS = ['f_test', 'f_train', 'f_answers'];
+const removeBtn = id => document.querySelector(`button.remove[data-for="${id}"]`);
+function clearFile(id) { $('#' + id).value = ''; removeBtn(id).hidden = true; }
+FILE_IDS.forEach(id => {
+  $('#' + id).addEventListener('change', () => { removeBtn(id).hidden = !$('#' + id).files.length; });
+  removeBtn(id).onclick = () => clearFile(id);
+});
+$('#clearFiles').onclick = () => { FILE_IDS.forEach(clearFile); $('#f_robust').checked = false; $('#b_out').hidden = true; };
 $('#batchBtn').onclick = e => busy(e.target, async () => {
   if (!$('#f_test').files[0]) throw new Error('Upload test.csv first.');
   const fd = new FormData(); fd.append('test', $('#f_test').files[0]);

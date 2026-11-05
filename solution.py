@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 from floodcast.features import KNOWN_FEATURES, UNSEEN_FEATURES, build_features, compute_station_stats  # noqa: E402
 from floodcast.model import Ensemble, FloodcastModel, fit  # noqa: E402
 from floodcast.schema import (  # noqa: E402
-    ID_COL, TARGET, make_submission, read_table, validate_submission, validate_test_input,
+    ID_COL, TARGET, make_submission, read_table, validate_history, validate_submission, validate_test_input,
 )
 
 MODEL_DIR = ROOT / "models"
@@ -72,6 +72,8 @@ def predict(test_path: Path, out_path: Path, train_path: Path | None) -> pd.Data
     test = read_table(test_path)
     validate_test_input(test)
     history = read_table(train_path, require_target=False) if train_path else None
+    if history is not None:
+        validate_history(history, test)
     model = FloodcastModel.load(MODEL_DIR)
     pred = model.predict(test, history)
     out = make_submission(test, pred)

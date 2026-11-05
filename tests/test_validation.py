@@ -95,3 +95,15 @@ def test_likely_range_is_ordered_even_for_tiny_flows():
     for flow in (0.0, 0.01, 0.5, 10.0, 1e5):
         lo, hi = risk.bounds(ids, np.full(len(ids), flow), np.ones(len(ids), bool))
         assert (lo >= 0).all() and (lo <= hi).all()
+
+
+def test_history_with_answers_for_test_days_is_rejected(test_frame):
+    """Leakage guard: the answers file uploaded as train.csv must be refused."""
+    from floodcast.schema import validate_history
+    answers = coerce_frame(pd.DataFrame({ID_COL: ["01646500"], DATE_COL: ["2025-11-02"], TARGET: [123.0]}))
+    with pytest.raises(ValueError, match="leakage"):
+        validate_history(answers, test_frame)
+    earlier = coerce_frame(pd.DataFrame({ID_COL: ["01646500"], DATE_COL: ["2025-10-31"], TARGET: [123.0]}))
+    validate_history(earlier, test_frame)  # history before the test days is fine
+    unlabelled = coerce_frame(pd.DataFrame({ID_COL: ["01646500"], DATE_COL: ["2025-11-02"]}))
+    validate_history(unlabelled, test_frame)  # weather-only rows carry no answer

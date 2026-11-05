@@ -86,3 +86,22 @@ def test_metrics_do_not_depend_on_row_order_or_excel_quirks():
     clean = app.run_batch(str(KIT / "test.csv"), None, str(KIT / "answers.csv"))[5]
     messy = app.run_batch(str(KIT / "test_excel_messy.csv"), None, str(KIT / "answers.csv"))[5]
     assert body(clean) == body(messy)
+
+
+def test_percentage_accuracy_definitions():
+    y = np.array([100.0, 200.0, 0.0, 50.0])
+    assert evaluation.accuracy_pct(y, y) == pytest.approx(1.0)
+    assert evaluation.within_pct(y, y) == pytest.approx(1.0)
+    # total error 60 on total flow 350 -> 1 - 60/350
+    assert evaluation.accuracy_pct(y, np.array([120.0, 160.0, 0.0, 50.0])) == pytest.approx(1 - 60 / 350)
+    # 120 is within 25% of 100, 140 is not; a dry day predicted at 0.2 cfs counts as close (floor: 25% of 1 cfs)
+    assert evaluation.within_pct(np.array([100.0, 100.0, 0.0]), np.array([120.0, 140.0, 0.2])) == pytest.approx(2 / 3)
+    # errors bigger than the total flow floor at 0%, never negative
+    assert evaluation.accuracy_pct(np.array([10.0]), np.array([100.0])) == 0.0
+
+
+@needs_kit
+def test_score_shows_accuracy_in_percent():
+    score_md = app.run_batch(str(KIT / "test.csv"), None, str(KIT / "answers.csv"))[4]
+    assert "| Accuracy | Days within ±25% | Variation explained (R²) |" in score_md
+    assert score_md.count("%** |") >= 1

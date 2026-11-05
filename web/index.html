@@ -95,11 +95,12 @@
     <div class="head"><h2>Batch prediction</h2>
       <p>Upload <code>test.csv</code> to get <code>predictions.csv</code>. Add <code>train.csv</code> for rainfall history and <code>answers.csv</code> to see accuracy.</p></div>
     <div class="card toolbar">
-      <label>test.csv <input type="file" id="f_test" accept=".csv"></label>
-      <label>train.csv (optional) <input type="file" id="f_train" accept=".csv"></label>
-      <label>answers.csv (optional) <input type="file" id="f_answers" accept=".csv"></label>
+      <label>test.csv <span class="filerow"><input type="file" id="f_test" accept=".csv"><button type="button" class="ghost remove" data-for="f_test" hidden>Remove</button></span></label>
+      <label>train.csv (optional) <span class="filerow"><input type="file" id="f_train" accept=".csv"><button type="button" class="ghost remove" data-for="f_train" hidden>Remove</button></span></label>
+      <label>answers.csv (optional) <span class="filerow"><input type="file" id="f_answers" accept=".csv"><button type="button" class="ghost remove" data-for="f_answers" hidden>Remove</button></span></label>
       <label><input type="checkbox" id="f_robust"> Also run the robustness check (needs answers; slower)</label>
       <button id="batchBtn">Predict</button>
+      <button type="button" id="clearFiles" class="ghost">Remove all files</button>
     </div>
     <div id="b_out" hidden>
       <div id="b_score" class="card"></div>

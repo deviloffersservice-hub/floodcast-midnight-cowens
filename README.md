@@ -164,6 +164,8 @@ are non-negative. The file is validated against every rejection rule before it i
 - `predictions_with_risk.csv`: the likely range must be finite, non-negative and ordered
   (low ≤ high); `likely_range_coverage` (0.80, the 10–90% band) and any probability column must
   be between 0 and 1.
+- Optional `train.csv`: it may not hold discharge for any `station_id`/`date` being predicted
+  (that is the answer itself, i.e. leakage, e.g. `answers.csv` uploaded in the wrong box).
 - Rivers the model has never seen are **valid** (the brief requires them). "Unknown" means not in
   `test.csv`.
 
@@ -210,7 +212,7 @@ models/                trained LightGBM ensembles, station statistics, flood thr
 data/processed/        train.csv, test.csv (our held-out split), station metadata
 data/sample/           small example test file
 data/snapshot/         saved 16-day forecast (offline fallback)
-tests/                 114 tests: I/O robustness, validation rules, risk, languages, alerts, forecast fallback, app, web server, evaluation
+tests/                 120 tests: I/O robustness, validation rules, risk, languages, alerts, forecast fallback, app, web server, evaluation
 judge_test/            practice test kit in the organizers' format, with answers
 setup.bat, run_app.bat, predict.bat   Windows one-click scripts
 CLAUDE.md, CONTEXT.md  setup steps for Claude Code on Windows; project hand-over notes

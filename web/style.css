@@ -95,4 +95,5 @@ code{background:var(--soft);border:1px solid var(--line);border-radius:4px;paddi
 footer{border-top:1px solid var(--line);padding:20px 0 28px;font-size:13px;color:var(--muted);text-align:center}
 [hidden]{display:none!important}
 @media(max-width:800px){.two{grid-template-columns:1fr}.top-in{flex-direction:column;height:auto;padding:12px 0;gap:8px}
-  nav{flex-wrap:wrap;justify-content:center}.result .text{border-left:0;padding-left:0}}
+  nav{flex-wrap:wrap;justify-content:center}.result .text{border-left:0;padding-left:0}}.filerow{display:flex;gap:8px;align-items:center}
+button.remove{flex:none}

@@ -202,13 +202,13 @@ judge_test/              practice test kit + answers
 reports/                 metrics, alert skill, replay events, holdout predictions, slides.pdf, screenshots
 scripts/                 data download, dataset build, evaluation, thresholds, kit, slides,
                          verify_install.py (install check), score_kit.py (practice-kit scores)
-tests/                   pytest suite (114 tests)
+tests/                   pytest suite (120 tests)
 setup.bat, run_app.bat, predict.bat   Windows double-click scripts
 ```
 
 ## 8. How correctness is checked
 
-- `pytest -q tests`: **114 tests** covering:
+- `pytest -q tests`: **120 tests** covering:
   - messy inputs and the validation rules;
   - risk levels;
   - all 3 languages;

@@ -164,7 +164,7 @@ the wrong version or 32-bit. Go back to Step 2.
 .venv/Scripts/python.exe -m pytest -q tests
 ```
 
-Expected result: **`114 passed`**, 0 failed. It takes about 6 s on the Mac, so expect well under a
+Expected result: **`120 passed`**, 0 failed. It takes about 6 s on the Mac, so expect well under a
 minute on the laptop.
 
 ## Step 6: Install check (model reproduces + practice kit score)
@@ -277,7 +277,7 @@ git status --short
 .venv/Scripts/python.exe scripts/score_kit.py
 ```
 
-- The tests and the install check must pass again, with **114 passed**.
+- The tests and the install check must pass again, with **120 passed**.
 - `score_kit.py` prints a markdown table:
   - two inputs: `test.csv` alone, and with `train_optional.csv`;
   - three river groups: all, known and new.

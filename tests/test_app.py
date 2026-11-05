@@ -186,3 +186,9 @@ def test_batch_answers_for_other_rows_is_rejected(tmp_path):
     other.write_text("station_id,date,discharge_cfs\n99999999,1999-01-01,5\n", encoding="utf-8")
     with pytest.raises(gr.Error, match="No answers matched"):
         app.run_batch(str(SAMPLE), None, str(other))
+
+
+@pytest.mark.skipif(not (KIT / "answers.csv").exists(), reason="practice kit not built")
+def test_batch_rejects_answers_uploaded_as_train():
+    with pytest.raises(gr.Error, match="train.csv rejected"):
+        app.run_batch(str(KIT / "test.csv"), str(KIT / "answers.csv"))
